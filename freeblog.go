@@ -2,9 +2,12 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -32,7 +35,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-
 func run(args []string) error {
 	sw, parms := parseArgs(args)
 
@@ -69,7 +71,7 @@ func run(args []string) error {
    `, dbfile)
 	}
 
-	_, err := sql.Open("sqlite3", dbfile)
+	db, err := sql.Open("sqlite3", dbfile)
 	if err != nil {
 		return fmt.Errorf("Error opening '%s' (%s)\n", dbfile, err)
 	}
@@ -77,6 +79,10 @@ func run(args []string) error {
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/radio.ico") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./"))))
+	http.HandleFunc("/api/login/", loginHandler(db))
+	http.HandleFunc("/api/signup/", signupHandler(db))
+	http.HandleFunc("/api/edituser/", edituserHandler(db))
+	http.HandleFunc("/api/deluser/", deluserHandler(db))
 
 	port := "8000"
 	if len(parms) > 1 {
@@ -331,4 +337,264 @@ func isUsernameExists(db *sql.DB, username string) bool {
 		return false
 	}
 	return true
+}
+
+func genTok(u *User) string {
+	tok := genHash(fmt.Sprintf("%s_%s", u.Username, u.HashedPwd))
+	return tok
+}
+func validateTok(tok string, u *User) bool {
+	return validateHash(tok, fmt.Sprintf("%s_%s", u.Username, u.HashedPwd))
+}
+
+var ErrLoginIncorrect = errors.New("Incorrect username or password")
+
+func login(db *sql.DB, username, pwd string) (string, error) {
+	var u User
+	s := "SELECT user_id, username, password FROM user WHERE username = ?"
+	row := db.QueryRow(s, username)
+	err := row.Scan(&u.Userid, &u.Username, &u.HashedPwd)
+	if err == sql.ErrNoRows {
+		return "", ErrLoginIncorrect
+	}
+	if err != nil {
+		return "", err
+	}
+	if !validateHash(u.HashedPwd, pwd) {
+		return "", ErrLoginIncorrect
+	}
+
+	// Return session token, this will be used to authenticate username
+	// on every request by calling validateTok()
+	tok := genTok(&u)
+	return tok, nil
+}
+
+type LoginResult struct {
+	Tok   string `json:"tok"`
+	Error string `json:"error"`
+}
+
+func loginHandler(db *sql.DB) http.HandlerFunc {
+	type LoginReq struct {
+		Username string `json:"username"`
+		Pwd      string `json:"pwd"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST method", 401)
+			return
+		}
+		bs, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			handleErr(w, err, "loginHandler")
+			return
+		}
+		var loginreq LoginReq
+		err = json.Unmarshal(bs, &loginreq)
+		if err != nil {
+			handleErr(w, err, "loginHandler")
+			return
+		}
+
+		var result LoginResult
+		tok, err := login(db, loginreq.Username, loginreq.Pwd)
+		if err != nil {
+			result.Error = fmt.Sprintf("%s", err)
+		}
+		result.Tok = tok
+
+		w.Header().Set("Content-Type", "application/json")
+		P := makeFprintf(w)
+		bs, _ = json.MarshalIndent(result, "", "\t")
+		P("%s\n", string(bs))
+	}
+}
+
+func signup(db *sql.DB, username, pwd string) error {
+	if isUsernameExists(db, username) {
+		return fmt.Errorf("username '%s' already exists", username)
+	}
+
+	hashedPwd := genHash(pwd)
+	s := "INSERT INTO user (username, password) VALUES (?, ?);"
+	_, err := sqlexec(db, s, username, hashedPwd)
+	if err != nil {
+		return fmt.Errorf("DB error creating user: %s", err)
+	}
+	return nil
+}
+func signupHandler(db *sql.DB) http.HandlerFunc {
+	type SignupReq struct {
+		Username string `json:"username"`
+		Pwd      string `json:"pwd"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST method", 401)
+			return
+		}
+
+		bs, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			handleErr(w, err, "signupHandler")
+			return
+		}
+		var signupreq SignupReq
+		err = json.Unmarshal(bs, &signupreq)
+		if err != nil {
+			handleErr(w, err, "signupHandler")
+			return
+		}
+		if signupreq.Username == "" {
+			http.Error(w, "username required", 401)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		P := makeFprintf(w)
+
+		// Attempt to sign up new user.
+		var result LoginResult
+		err = signup(db, signupreq.Username, signupreq.Pwd)
+		if err != nil {
+			result.Error = fmt.Sprintf("%s", err)
+			bs, _ := json.MarshalIndent(result, "", "\t")
+			P("%s\n", string(bs))
+			return
+		}
+
+		// Log in the newly signed up user.
+		tok, err := login(db, signupreq.Username, signupreq.Pwd)
+		result.Tok = tok
+		if err != nil {
+			result.Error = fmt.Sprintf("%s", err)
+		}
+		bs, _ = json.MarshalIndent(result, "", "\t")
+		P("%s\n", string(bs))
+	}
+}
+
+func edituser(db *sql.DB, username, pwd string, newpwd string) error {
+	// Validate existing password
+	_, err := login(db, username, pwd)
+	if err != nil {
+		return err
+	}
+
+	// Set new password
+	hashedPwd := genHash(newpwd)
+	s := "UPDATE user SET password = ? WHERE username = ?"
+	_, err = sqlexec(db, s, hashedPwd, username)
+	if err != nil {
+		return fmt.Errorf("DB error updating user password: %s", err)
+	}
+	return nil
+}
+func edituserHandler(db *sql.DB) http.HandlerFunc {
+	type EditUserReq struct {
+		Username string `json:"username"`
+		Pwd      string `json:"pwd"`
+		NewPwd   string `json:"newpwd"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST method", 401)
+			return
+		}
+
+		bs, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			handleErr(w, err, "edituserHandler")
+			return
+		}
+		var req EditUserReq
+		err = json.Unmarshal(bs, &req)
+		if err != nil {
+			handleErr(w, err, "edituserHandler")
+			return
+		}
+		if req.Username == "" {
+			http.Error(w, "username required", 401)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		P := makeFprintf(w)
+
+		// Attempt to edit user.
+		var result LoginResult
+		err = edituser(db, req.Username, req.Pwd, req.NewPwd)
+		if err != nil {
+			result.Error = fmt.Sprintf("%s", err)
+			bs, _ := json.MarshalIndent(result, "", "\t")
+			P("%s\n", string(bs))
+			return
+		}
+
+		// Log in the newly edited user.
+		tok, err := login(db, req.Username, req.NewPwd)
+		result.Tok = tok
+		if err != nil {
+			result.Error = fmt.Sprintf("%s", err)
+		}
+		bs, _ = json.MarshalIndent(result, "", "\t")
+		P("%s\n", string(bs))
+	}
+}
+
+func deluser(db *sql.DB, username, pwd string) error {
+	// Validate existing password
+	_, err := login(db, username, pwd)
+	if err != nil {
+		return err
+	}
+
+	// Delete user
+	s := "DELETE FROM user WHERE username = ?"
+	_, err = sqlexec(db, s, username)
+	if err != nil {
+		return fmt.Errorf("DB error deleting user: %s", err)
+	}
+	return nil
+}
+func deluserHandler(db *sql.DB) http.HandlerFunc {
+	type DelUserReq struct {
+		Username string `json:"username"`
+		Pwd      string `json:"pwd"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST method", 401)
+			return
+		}
+
+		bs, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			handleErr(w, err, "deluserHandler")
+			return
+		}
+		var req DelUserReq
+		err = json.Unmarshal(bs, &req)
+		if err != nil {
+			handleErr(w, err, "deluserHandler")
+			return
+		}
+		if req.Username == "" {
+			http.Error(w, "username required", 401)
+			return
+		}
+
+		// Attempt to delete user.
+		var result LoginResult
+		err = deluser(db, req.Username, req.Pwd)
+		if err != nil {
+			result.Error = fmt.Sprintf("%s", err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		P := makeFprintf(w)
+		bs, _ = json.MarshalIndent(result, "", "\t")
+		P("%s\n", string(bs))
+	}
 }
