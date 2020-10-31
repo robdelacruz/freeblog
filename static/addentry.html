@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreeBlog</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<style>
+.myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}
+</style>
+<script defer src="bundle.js"></script>
+</head>
+<body class="py-2 bg-white text-black text-base leading-6 myfont light">
+<div class="mx-auto max-w-screen-sm">
+    <form class="mx-auto py-4 px-8">
+        <h1 class="font-bold mx-auto text-2xl mb-4 text-center">New Entry</h1>
+        <div class="mb-2">
+            <label class="block font-bold uppercase text-sm" for="username">title</label>
+            <input class="block border border-gray-500 py-1 px-4 w-full" id="title" name="title" type="text" value="The Things We Think and Do Not Say">
+        </div>
+        <div class="mb-2">
+            <label class="block font-bold uppercase text-sm" for="username">entry</label>
+            <textarea class="block border border-gray-500 py-1 px-4 w-full" id="entry" name="entry" rows="20">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed purus massa, vulputate quis nibh nec, dictum congue magna. Vivamus in ligula ut massa sollicitudin dictum. Cras nisl ex, dapibus ac ligula et, convallis malesuada eros. Vestibulum porttitor pretium dolor a porta. Integer scelerisque maximus ex at imperdiet. Vestibulum blandit mollis porta. Sed gravida, metus eu lobortis rhoncus, justo nibh rutrum diam, eget auctor arcu nunc fermentum lorem. Sed vel urna sed dolor imperdiet sagittis eget eu leo. Vivamus facilisis ipsum quis cursus feugiat. Suspendisse potenti. Mauris pellentesque mauris at pretium posuere. Quisque accumsan condimentum purus, sed gravida eros rutrum non. Sed feugiat mauris tellus, a sollicitudin sapien gravida sed. Cras mollis suscipit ante et dapibus.
+
+Morbi mollis, quam vitae ornare fermentum, turpis tellus feugiat dolor, ac auctor lorem orci at velit. Integer at facilisis dui. Praesent in lorem vel nulla dictum convallis. Sed cursus posuere leo, quis iaculis nibh vulputate faucibus. Nulla mollis aliquet dictum. Suspendisse libero tortor, tincidunt eu massa ut, vestibulum suscipit velit. Vivamus vel ornare est. Quisque mollis nec dolor ut sodales. Nunc dolor turpis, finibus sit amet dignissim quis, iaculis mollis augue. Donec sollicitudin nibh a viverra lobortis. Vivamus sed venenatis massa. Praesent in ligula nec nisi placerat fermentum elementum vitae velit. Nam efficitur neque tellus, quis accumsan nisl gravida iaculis. Vestibulum maximus ut est sit amet consequat. Praesent bibendum, massa vel viverra malesuada, tortor turpis ultricies odio, eu vestibulum ante felis facilisis magna.
+
+Maecenas sit amet egestas urna. Ut semper lectus convallis auctor vehicula. Curabitur in porta purus, quis pulvinar mauris. Sed in efficitur purus. Integer consectetur semper finibus. Donec mauris lacus, egestas id odio et, porttitor lacinia ligula. Nam ex ligula, scelerisque vel ante non, malesuada tempus mauris. Sed eget leo ut eros sagittis suscipit. Nunc in ornare turpis, ac sollicitudin mauris.</textarea>
+        </div>
+        <div class="mb-2">
+            <p class="font-bold uppercase text-xs">Server error when submitting entry</p>
+        </div>
+        <div class="flex flex-row justify-center mb-4 justify-center">
+                <button class="inline w-full py-1 px-2 border border-gray-500 font-bold">Submit</button>
+        </div>
+        <div class="flex flex-row justify-end">
+            <a class="underline text-sm" href="#a">Cancel</a>
+        </div>
+    </form>
+</div>
+</body>
+</html>

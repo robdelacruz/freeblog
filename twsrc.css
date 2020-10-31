@@ -22,3 +22,12 @@
 .content img[src*="#right"] {@apply float-right ml-2;}
 .content iframe {@apply w-full;}
 
+.light {@apply bg-white text-black;}
+.light form {@apply bg-gray-200 text-gray-800;}
+.light button {@apply bg-gray-400;}
+
+.dark {@apply bg-gray-900 text-gray-200;}
+.dark form {@apply bg-gray-800;}
+.dark input, .dark textarea {@apply bg-gray-800;}
+.dark button {@apply bg-purple-900;}
+
