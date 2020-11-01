@@ -2,12 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -26,6 +24,12 @@ type User struct {
 	Userid    int64
 	Username  string
 	HashedPwd string
+}
+
+type Entry struct {
+	Entryid int64
+	Title   string
+	Body    string
 }
 
 func main() {
@@ -78,14 +82,11 @@ func run(args []string) error {
 
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/radio.ico") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./"))))
-	http.HandleFunc("/api/login/", apiloginHandler(db))
-	http.HandleFunc("/api/signup/", apisignupHandler(db))
-	http.HandleFunc("/api/edituser/", apiedituserHandler(db))
-	http.HandleFunc("/api/deluser/", apideluserHandler(db))
-
+	http.HandleFunc("/", indexHandler(db))
 	http.HandleFunc("/login/", loginHandler(db))
 	http.HandleFunc("/logout/", logoutHandler(db))
+	http.HandleFunc("/signup/", signupHandler(db))
+	http.HandleFunc("/addentry/", addentryHandler(db))
 	http.HandleFunc("/entry/", entryHandler(db))
 
 	port := "8000"
@@ -113,7 +114,7 @@ func createTables(newfile string) {
 	ss := []string{
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
-		"CREATE TABLE savedgrid (user_id INTEGER PRIMARY KEY NOT NULL, gridjson TEXT);",
+		"CREATE TABLE entry (entry_id INTEGER PRIMARY KEY NOT NULL, title TEXT, body TEXT);",
 	}
 
 	tx, err := db.Begin()
@@ -304,6 +305,9 @@ func handleTxErr(tx *sql.Tx, err error) bool {
 	}
 	return false
 }
+func logErr(sfunc string, err error) {
+	log.Printf("%s error (%s)\n", sfunc, err)
+}
 
 func genHash(sinput string) string {
 	bsHash, err := bcrypt.GenerateFromPassword([]byte(sinput), bcrypt.DefaultCost)
@@ -374,9 +378,198 @@ func login(db *sql.DB, username, pwd string) (string, error) {
 	return tok, nil
 }
 
-type LoginResult struct {
-	Tok   string `json:"tok"`
-	Error string `json:"error"`
+func signup(db *sql.DB, username, pwd string) error {
+	if isUsernameExists(db, username) {
+		return fmt.Errorf("username '%s' already exists", username)
+	}
+
+	hashedPwd := genHash(pwd)
+	s := "INSERT INTO user (username, password) VALUES (?, ?);"
+	_, err := sqlexec(db, s, username, hashedPwd)
+	if err != nil {
+		return fmt.Errorf("DB error creating user: %s", err)
+	}
+	return nil
+}
+
+func edituser(db *sql.DB, username, pwd string, newpwd string) error {
+	// Validate existing password
+	_, err := login(db, username, pwd)
+	if err != nil {
+		return err
+	}
+
+	// Set new password
+	hashedPwd := genHash(newpwd)
+	s := "UPDATE user SET password = ? WHERE username = ?"
+	_, err = sqlexec(db, s, hashedPwd, username)
+	if err != nil {
+		return fmt.Errorf("DB error updating user password: %s", err)
+	}
+	return nil
+}
+
+func deluser(db *sql.DB, username, pwd string) error {
+	// Validate existing password
+	_, err := login(db, username, pwd)
+	if err != nil {
+		return err
+	}
+
+	// Delete user
+	s := "DELETE FROM user WHERE username = ?"
+	_, err = sqlexec(db, s, username)
+	if err != nil {
+		return fmt.Errorf("DB error deleting user: %s", err)
+	}
+	return nil
+}
+
+//*** HTML template functions ***
+func printHtmlOpen(P PrintFunc, title string, jsurls []string) {
+	P("<!DOCTYPE html>\n")
+	P("<html>\n")
+	P("<head>\n")
+	P("<meta charset=\"utf-8\">\n")
+	P("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
+	P("<title>%s</title>\n", title)
+	P("<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/style.css\">\n")
+	for _, jsurl := range jsurls {
+		P("<script defer src=\"%s\"></script>\n", jsurl)
+	}
+	P("<style>\n")
+	P(".myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}\n")
+	P("</style>\n")
+	P("</head>\n")
+	P("<body class=\"py-2 text-base leading-6 myfont light\">\n")
+	P("<div id=\"container\" class=\"mx-auto max-w-screen-sm\">\n")
+}
+func printHtmlClose(P PrintFunc) {
+	P("</div>\n")
+	P("</body>\n")
+	P("</html>\n")
+}
+func printHeading(P PrintFunc, r *http.Request) {
+	username, _ := readLoginCookie(r)
+
+	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-2 text-sm\"\n>")
+	P("    <div>\n")
+	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/\">FreeBlog</a></h1>\n")
+	P("        <a href=\"about.html\" class=\"self-end mr-2\">About</a>\n")
+	if username != "" {
+		P("        <a href=\"/addentry\" class=\"pill self-center rounded px-2 py-1 mr-1\">Add Entry</a>\n")
+	}
+	P("    </div>\n")
+	P("    <div>\n")
+	if username != "" {
+		P("        <div class=\"relative inline mr-2\">\n")
+		P("            <a class=\"mr-1\" href=\"#a\">%s</a>\n", escape(username))
+		P("            <div class=\"popmenu hidden absolute top-auto right-0 py-1 w-20 border border-gray-500 shadow-xs w-32\">\n")
+		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Change Password</a>\n")
+		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Delete Account</a>\n")
+		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Reset LocalStorage</a>\n")
+		P("            </div>\n")
+		P("        </div>\n")
+		P("        <a href=\"/logout\" class=\"inline self-end mr-1\">Logout</a>\n")
+	} else {
+		P("        <a href=\"/login\" class=\"inline self-end mr-1\">Login</a>\n")
+	}
+	P("    </div>\n")
+	P("</div>\n")
+}
+func printFormOpen(P PrintFunc, action, heading string) {
+	P("<form action=\"%s\" method=\"post\" class=\"mx-auto py-4 px-8 text-sm\">\n", action)
+	if heading != "" {
+		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-xl\">%s</h1>\n", heading)
+	}
+}
+func printFormSmallOpen(P PrintFunc, action, heading string) {
+	P("<form action=\"%s\" method=\"post\" class=\"mx-auto py-4 px-8 text-sm max-w-sm\">\n", action)
+	if heading != "" {
+		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-xl\">%s</h1>\n", heading)
+	}
+}
+func printFormClose(P PrintFunc) {
+	P("</form>\n")
+}
+func printFormInput(P PrintFunc, id, label, val string) {
+	P("<div class=\"mb-2\">\n")
+	P("    <label class=\"block font-bold uppercase text-xs\" for=\"%s\">%s</label>\n", id, label)
+	P("    <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"%[1]s\" name=\"%[1]s\" type=\"text\" value=\"%s\">\n", id, val)
+	P("</div>\n")
+}
+func printFormInputPassword(P PrintFunc, id, label, val string) {
+	P("<div class=\"mb-2\">\n")
+	P("    <label class=\"block font-bold uppercase text-xs\" for=\"%s\">%s</label>\n", id, label)
+	P("    <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"%[1]s\" name=\"%[1]s\" type=\"password\" value=\"%s\">\n", id, val)
+	P("</div>\n")
+}
+func printFormTextarea(P PrintFunc, id, label, val, rows string) {
+	if rows == "" {
+		rows = "22"
+	}
+	P("<div class=\"mb-2\">\n")
+	P("    <label class=\"block font-bold uppercase text-xs\" for=\"%s\">%s</label>\n", id, label)
+	P("    <textarea class=\"block border border-gray-500 py-1 px-4 w-full leading-5\" id=\"%[1]s\" name=\"%[1]s\" rows=\"%s\">%s</textarea>\n", id, rows, val)
+	P("</div>\n")
+}
+func printFormError(P PrintFunc, errmsg string) {
+	if errmsg == "" {
+		return
+	}
+	P("<div class=\"mb-2\">\n")
+	P("    <p class=\"font-bold uppercase text-xs\">%s</p>\n", errmsg)
+	P("</div>\n")
+}
+func printFormSubmit(P PrintFunc, caption string) {
+	P("<div class=\"mb-2\">\n")
+	P("    <button type=\"submit\" class=\"inline w-full mx-auto py-1 px-2 border border-gray-500 font-bold mr-2\">%s</button>\n", caption)
+	P("</div>\n")
+}
+
+// Ex. printFormLinks(P, "justify-end", "/signup", "Sign Up", "/login", "Login")
+func printFormLinks(P PrintFunc, justify string, ss ...string) {
+	type Link struct {
+		Href    string
+		Caption string
+	}
+
+	if justify == "" {
+		justify = "justify-between"
+	}
+
+	var ll []Link
+	var l Link
+	for _, s := range ss {
+		if l.Href == "" {
+			l.Href = s
+			continue
+		}
+		if l.Caption == "" {
+			l.Caption = s
+			ll = append(ll, l)
+
+			l.Href = ""
+			l.Caption = ""
+		}
+
+	}
+
+	P("<div class=\"flex flex-row %s\">\n", justify)
+	for _, l := range ll {
+		P("    <a class=\"underline text-xs\" href=\"%s\">%s</a>\n", l.Href, l.Caption)
+	}
+	P("</div>\n")
+}
+
+func printSampleEntry(P PrintFunc) {
+	P("<h1 class=\"font-bold text-2xl mb-4\">The Things We Think and Do Not Say</h1>\n")
+	P("<div class=\"content\">\n")
+	P(`    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed purus massa, vulputate quis nibh nec, dictum congue magna. Vivamus in ligula ut massa sollicitudin dictum. Cras nisl ex, dapibus ac ligula et, convallis malesuada eros. Vestibulum porttitor pretium dolor a porta. Integer scelerisque maximus ex at imperdiet. Vestibulum blandit mollis porta. Sed gravida, metus eu lobortis rhoncus, justo nibh rutrum diam, eget auctor arcu nunc fermentum lorem. Sed vel urna sed dolor imperdiet sagittis eget eu leo. Vivamus facilisis ipsum quis cursus feugiat. Suspendisse potenti. Mauris pellentesque mauris at pretium posuere. Quisque accumsan condimentum purus, sed gravida eros rutrum non. Sed feugiat mauris tellus, a sollicitudin sapien gravida sed. Cras mollis suscipit ante et dapibus.
+
+        <p>Morbi mollis, quam vitae ornare fermentum, turpis tellus feugiat dolor, ac auctor lorem orci at velit. Integer at facilisis dui. Praesent in lorem vel nulla dictum convallis. Sed cursus posuere leo, quis iaculis nibh vulputate faucibus. Nulla mollis aliquet dictum. Suspendisse libero tortor, tincidunt eu massa ut, vestibulum suscipit velit. Vivamus vel ornare est. Quisque mollis nec dolor ut sodales. Nunc dolor turpis, finibus sit amet dignissim quis, iaculis mollis augue. Donec sollicitudin nibh a viverra lobortis. Vivamus sed venenatis massa. Praesent in ligula nec nisi placerat fermentum elementum vitae velit. Nam efficitur neque tellus, quis accumsan nisl gravida iaculis. Vestibulum maximus ut est sit amet consequat. Praesent bibendum, massa vel viverra malesuada, tortor turpis ultricies odio, eu vestibulum ante felis facilisis magna.
+`)
+	P("</div>\n")
 }
 
 func setLoginCookie(w http.ResponseWriter, username, tok string) {
@@ -411,308 +604,33 @@ func readLoginCookie(r *http.Request) (string, string) {
 	}
 	return username, tok
 }
-
-func apiloginHandler(db *sql.DB) http.HandlerFunc {
-	type LoginReq struct {
-		Username string `json:"username"`
-		Pwd      string `json:"pwd"`
-	}
+func indexHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Use POST method", 401)
-			return
-		}
-		bs, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			handleErr(w, err, "apiloginHandler")
-			return
-		}
-		var loginreq LoginReq
-		err = json.Unmarshal(bs, &loginreq)
-		if err != nil {
-			handleErr(w, err, "apiloginHandler")
-			return
-		}
-
-		var result LoginResult
-		tok, err := login(db, loginreq.Username, loginreq.Pwd)
-		if err != nil {
-			result.Error = fmt.Sprintf("%s", err)
-		}
-		result.Tok = tok
-
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
-		bs, _ = json.MarshalIndent(result, "", "\t")
-		P("%s\n", string(bs))
+		printHtmlOpen(P, "FreeBlog", nil)
+		printHeading(P, r)
+		printHtmlClose(P)
 	}
-}
-
-func signup(db *sql.DB, username, pwd string) error {
-	if isUsernameExists(db, username) {
-		return fmt.Errorf("username '%s' already exists", username)
-	}
-
-	hashedPwd := genHash(pwd)
-	s := "INSERT INTO user (username, password) VALUES (?, ?);"
-	_, err := sqlexec(db, s, username, hashedPwd)
-	if err != nil {
-		return fmt.Errorf("DB error creating user: %s", err)
-	}
-	return nil
-}
-func apisignupHandler(db *sql.DB) http.HandlerFunc {
-	type SignupReq struct {
-		Username string `json:"username"`
-		Pwd      string `json:"pwd"`
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Use POST method", 401)
-			return
-		}
-
-		bs, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			handleErr(w, err, "apisignupHandler")
-			return
-		}
-		var signupreq SignupReq
-		err = json.Unmarshal(bs, &signupreq)
-		if err != nil {
-			handleErr(w, err, "apisignupHandler")
-			return
-		}
-		if signupreq.Username == "" {
-			http.Error(w, "username required", 401)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		P := makeFprintf(w)
-
-		// Attempt to sign up new user.
-		var result LoginResult
-		err = signup(db, signupreq.Username, signupreq.Pwd)
-		if err != nil {
-			result.Error = fmt.Sprintf("%s", err)
-			bs, _ := json.MarshalIndent(result, "", "\t")
-			P("%s\n", string(bs))
-			return
-		}
-
-		// Log in the newly signed up user.
-		tok, err := login(db, signupreq.Username, signupreq.Pwd)
-		result.Tok = tok
-		if err != nil {
-			result.Error = fmt.Sprintf("%s", err)
-		}
-		bs, _ = json.MarshalIndent(result, "", "\t")
-		P("%s\n", string(bs))
-	}
-}
-
-func edituser(db *sql.DB, username, pwd string, newpwd string) error {
-	// Validate existing password
-	_, err := login(db, username, pwd)
-	if err != nil {
-		return err
-	}
-
-	// Set new password
-	hashedPwd := genHash(newpwd)
-	s := "UPDATE user SET password = ? WHERE username = ?"
-	_, err = sqlexec(db, s, hashedPwd, username)
-	if err != nil {
-		return fmt.Errorf("DB error updating user password: %s", err)
-	}
-	return nil
-}
-func apiedituserHandler(db *sql.DB) http.HandlerFunc {
-	type EditUserReq struct {
-		Username string `json:"username"`
-		Pwd      string `json:"pwd"`
-		NewPwd   string `json:"newpwd"`
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Use POST method", 401)
-			return
-		}
-
-		bs, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			handleErr(w, err, "apiedituserHandler")
-			return
-		}
-		var req EditUserReq
-		err = json.Unmarshal(bs, &req)
-		if err != nil {
-			handleErr(w, err, "apiedituserHandler")
-			return
-		}
-		if req.Username == "" {
-			http.Error(w, "username required", 401)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		P := makeFprintf(w)
-
-		// Attempt to edit user.
-		var result LoginResult
-		err = edituser(db, req.Username, req.Pwd, req.NewPwd)
-		if err != nil {
-			result.Error = fmt.Sprintf("%s", err)
-			bs, _ := json.MarshalIndent(result, "", "\t")
-			P("%s\n", string(bs))
-			return
-		}
-
-		// Log in the newly edited user.
-		tok, err := login(db, req.Username, req.NewPwd)
-		result.Tok = tok
-		if err != nil {
-			result.Error = fmt.Sprintf("%s", err)
-		}
-		bs, _ = json.MarshalIndent(result, "", "\t")
-		P("%s\n", string(bs))
-	}
-}
-
-func deluser(db *sql.DB, username, pwd string) error {
-	// Validate existing password
-	_, err := login(db, username, pwd)
-	if err != nil {
-		return err
-	}
-
-	// Delete user
-	s := "DELETE FROM user WHERE username = ?"
-	_, err = sqlexec(db, s, username)
-	if err != nil {
-		return fmt.Errorf("DB error deleting user: %s", err)
-	}
-	return nil
-}
-func apideluserHandler(db *sql.DB) http.HandlerFunc {
-	type DelUserReq struct {
-		Username string `json:"username"`
-		Pwd      string `json:"pwd"`
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Use POST method", 401)
-			return
-		}
-
-		bs, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			handleErr(w, err, "apideluserHandler")
-			return
-		}
-		var req DelUserReq
-		err = json.Unmarshal(bs, &req)
-		if err != nil {
-			handleErr(w, err, "apideluserHandler")
-			return
-		}
-		if req.Username == "" {
-			http.Error(w, "username required", 401)
-			return
-		}
-
-		// Attempt to delete user.
-		var result LoginResult
-		err = deluser(db, req.Username, req.Pwd)
-		if err != nil {
-			result.Error = fmt.Sprintf("%s", err)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		P := makeFprintf(w)
-		bs, _ = json.MarshalIndent(result, "", "\t")
-		P("%s\n", string(bs))
-	}
-}
-
-//*** HTML template functions ***
-func printHtmlOpen(P PrintFunc, title string, jsurls []string) {
-	P("<!DOCTYPE html>\n")
-	P("<html>\n")
-	P("<head>\n")
-	P("<meta charset=\"utf-8\">\n")
-	P("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
-	P("<title>%s</title>\n", title)
-	P("<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/style.css\">\n")
-	for _, jsurl := range jsurls {
-		P("<script defer src=\"%s\"></script>\n", jsurl)
-	}
-	P("<style>\n")
-	P(".myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}\n")
-	P("</style>\n")
-	P("</head>\n")
-	P("<body class=\"py-2 text-base leading-6 myfont light\">\n")
-	P("<div id=\"container\" class=\"mx-auto max-w-screen-sm\">\n")
-}
-func printHtmlClose(P PrintFunc) {
-	P("</div>\n")
-	P("</body>\n")
-	P("</html>\n")
-}
-func printHeading(P PrintFunc, r *http.Request) {
-	username, _ := readLoginCookie(r)
-
-	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-6 text-sm\"\n>")
-	P("    <div>\n")
-	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/\">FreeBlog</a></h1>\n")
-	P("        <a href=\"about.html\" class=\"self-end mr-2\">About</a>\n")
-	P("        <a href=\"#a\" class=\"pill self-center rounded px-2 py-1 mr-1\">Add Entry</a>\n")
-	P("    </div>\n")
-	P("    <div>\n")
-	if username != "" {
-		P("        <div class=\"relative inline mr-2\">\n")
-		P("            <a class=\"mr-1\" href=\"#a\">%s</a>\n", escape(username))
-		P("            <div class=\"popmenu hidden absolute top-auto right-0 py-1 w-20 border border-gray-500 shadow-xs w-32\">\n")
-		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Change Password</a>\n")
-		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Delete Account</a>\n")
-		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Reset LocalStorage</a>\n")
-		P("            </div>\n")
-		P("        </div>\n")
-		P("        <a href=\"/logout\" class=\"inline self-end mr-1\">Logout</a>\n")
-	} else {
-		P("        <a href=\"/login\" class=\"inline self-end mr-1\">Login</a>\n")
-	}
-	P("    </div>\n")
-	P("</div>\n")
-}
-func printSampleEntry(P PrintFunc) {
-	P("<h1 class=\"font-bold text-2xl mb-4\">The Things We Think and Do Not Say</h1>\n")
-	P("<div class=\"content\">\n")
-	P(`    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed purus massa, vulputate quis nibh nec, dictum congue magna. Vivamus in ligula ut massa sollicitudin dictum. Cras nisl ex, dapibus ac ligula et, convallis malesuada eros. Vestibulum porttitor pretium dolor a porta. Integer scelerisque maximus ex at imperdiet. Vestibulum blandit mollis porta. Sed gravida, metus eu lobortis rhoncus, justo nibh rutrum diam, eget auctor arcu nunc fermentum lorem. Sed vel urna sed dolor imperdiet sagittis eget eu leo. Vivamus facilisis ipsum quis cursus feugiat. Suspendisse potenti. Mauris pellentesque mauris at pretium posuere. Quisque accumsan condimentum purus, sed gravida eros rutrum non. Sed feugiat mauris tellus, a sollicitudin sapien gravida sed. Cras mollis suscipit ante et dapibus.
-
-        <p>Morbi mollis, quam vitae ornare fermentum, turpis tellus feugiat dolor, ac auctor lorem orci at velit. Integer at facilisis dui. Praesent in lorem vel nulla dictum convallis. Sed cursus posuere leo, quis iaculis nibh vulputate faucibus. Nulla mollis aliquet dictum. Suspendisse libero tortor, tincidunt eu massa ut, vestibulum suscipit velit. Vivamus vel ornare est. Quisque mollis nec dolor ut sodales. Nunc dolor turpis, finibus sit amet dignissim quis, iaculis mollis augue. Donec sollicitudin nibh a viverra lobortis. Vivamus sed venenatis massa. Praesent in ligula nec nisi placerat fermentum elementum vitae velit. Nam efficitur neque tellus, quis accumsan nisl gravida iaculis. Vestibulum maximus ut est sit amet consequat. Praesent bibendum, massa vel viverra malesuada, tortor turpis ultricies odio, eu vestibulum ante felis facilisis magna.
-`)
-	P("</div>\n")
 }
 
 func loginHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var errmsg string
-		var f struct{ username, password string }
+		var f struct{ username, pwd string }
 
 		if r.Method == "POST" {
 			f.username = r.FormValue("username")
-			f.password = r.FormValue("password")
+			f.pwd = r.FormValue("pwd")
 			for {
-				tok, err := login(db, f.username, f.password)
+				tok, err := login(db, f.username, f.pwd)
 				if err != nil {
 					errmsg = fmt.Sprintf("%s", err)
 					break
 				}
 				setLoginCookie(w, f.username, tok)
 
-				http.Redirect(w, r, "/entry", http.StatusSeeOther)
+				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
 			}
 		}
@@ -722,29 +640,13 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 		printHtmlOpen(P, "FreeBlog", nil)
 		printHeading(P, r)
 
-		P("<form action=\"/login/\" method=\"post\" class=\"mx-auto py-4 px-8 max-w-sm\">\n")
-		P("    <h1 class=\"font-bold mx-auto text-2xl mb-4 text-center\">Sign In</h1>\n")
-		P("    <div class=\"mb-2\">\n")
-		P("        <label class=\"block font-bold uppercase text-sm\" for=\"username\">username</label>\n")
-		P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"username\" name=\"username\" type=\"text\" value=\"%s\">\n", f.username)
-		P("    </div>\n")
-		P("    <div class=\"mb-4\">\n")
-		P("        <label class=\"block font-bold uppercase text-sm\" for=\"pwd\">password</label>\n")
-		P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"pwd\" name=\"pwd\" type=\"password\" value=\"%s\">\n", f.password)
-		P("    </div>\n")
-		if errmsg != "" {
-			P("    <div class=\"mb-2\">\n")
-			P("        <p class=\"font-bold uppercase text-xs\">%s</p>\n", errmsg)
-			P("    </div>\n")
-		}
-		P("    <div class=\"mb-4\">\n")
-		P("        <button type=\"submit\" class=\"inline w-full mx-auto py-1 px-2 border border-gray-500 font-bold mr-2\">Login</button>\n")
-		P("    </div>\n")
-		P("    <div class=\"flex flex-row justify-between\">\n")
-		P("        <a class=\"underline text-sm\" href=\"#a\">Create New Account</a>\n")
-		P("        <a class=\"underline text-sm\" href=\"#a\">Cancel</a>\n")
-		P("    </div>\n")
-		P("</form>\n")
+		printFormSmallOpen(P, "/login/", "Log In")
+		printFormInput(P, "username", "username", f.username)
+		printFormInputPassword(P, "pwd", "password", f.pwd)
+		printFormError(P, errmsg)
+		printFormSubmit(P, "Login")
+		printFormLinks(P, "", "/signup", "Create New Account", "/", "Cancel")
+		printFormClose(P)
 
 		printHtmlClose(P)
 	}
@@ -752,7 +654,113 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 func logoutHandler(db *sql.DB) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		delLoginCookie(w)
-		http.Redirect(w, r, "/entry", http.StatusSeeOther)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
+func signupHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var errmsg string
+		var f struct{ username, pwd, pwd2 string }
+
+		if r.Method == "POST" {
+			f.username = r.FormValue("username")
+			f.pwd = r.FormValue("pwd")
+			f.pwd2 = r.FormValue("pwd2")
+			for {
+				if f.pwd != f.pwd2 {
+					errmsg = "passwords don't match"
+					break
+				}
+				err := signup(db, f.username, f.pwd)
+				if err != nil {
+					errmsg = fmt.Sprintf("%s", err)
+					break
+				}
+				tok, err := login(db, f.username, f.pwd)
+				if err != nil {
+					errmsg = fmt.Sprintf("%s", err)
+					break
+				}
+				setLoginCookie(w, f.username, tok)
+
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printHeading(P, r)
+
+		printFormSmallOpen(P, "/signup/", "Sign Up")
+		printFormInput(P, "username", "username", f.username)
+		printFormInputPassword(P, "pwd", "password", f.pwd)
+		printFormInputPassword(P, "pwd2", "re-enter password", f.pwd2)
+		printFormError(P, errmsg)
+		printFormSubmit(P, "Sign Up")
+		printFormLinks(P, "justify-end", "/", "Cancel")
+		printFormClose(P)
+
+		printHtmlClose(P)
+	}
+}
+
+func createEntry(db *sql.DB, e *Entry) (int64, error) {
+	s := "INSERT INTO entry (title, body) VALUES (?, ?)"
+	result, err := sqlexec(db, s, e.Title, e.Body)
+	if err != nil {
+		return 0, err
+	}
+	entryid, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return entryid, nil
+}
+func addentryHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var errmsg string
+		var e Entry
+		var tags string
+
+		if r.Method == "POST" {
+			e.Title = r.FormValue("title")
+			e.Body = r.FormValue("body")
+			tags = r.FormValue("tags")
+
+			for {
+				if e.Title == "" {
+					errmsg = "enter a title"
+					break
+				}
+				_, err := createEntry(db, &e)
+				if err != nil {
+					logErr("createEntry", err)
+					errmsg = "server error adding entry"
+					break
+				}
+
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printHeading(P, r)
+
+		printFormOpen(P, "/addentry/", "New Entry")
+		printFormInput(P, "title", "title", e.Title)
+		printFormTextarea(P, "body", "entry", e.Body, "")
+		printFormInput(P, "tags", "tags", tags)
+		printFormError(P, errmsg)
+		printFormSubmit(P, "Submit")
+		printFormLinks(P, "justify-end", "/", "Cancel")
+		printFormClose(P)
+
+		printHtmlClose(P)
 	}
 }
 
