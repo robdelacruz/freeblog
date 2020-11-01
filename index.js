@@ -1,10 +1,6 @@
-import App from "./App.svelte";
-const app = new App({
-    target: document.querySelector("#hello1"),
-    props: {
-        name: "rob",
-    }
-});
+import LoginForm from "./LoginForm.svelte";
 
-export default app;
+window.AddLoginForm = function(el) {
+    return new LoginForm({target: el});
+}
 

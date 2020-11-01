@@ -603,7 +603,7 @@ func apideluserHandler(db *sql.DB) http.HandlerFunc {
 }
 
 //*** HTML template functions ***
-func printHtmlOpen(P PrintFunc, jsurls []string, cssurls []string, title string) {
+func printHtmlOpen(P PrintFunc, title string, jsurls []string) {
 	P("<!DOCTYPE html>\n")
 	P("<html>\n")
 	P("<head>\n")
@@ -611,19 +611,15 @@ func printHtmlOpen(P PrintFunc, jsurls []string, cssurls []string, title string)
 	P("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
 	P("<title>%s</title>\n", title)
 	P("<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/style.css\">\n")
-	P("<script defer src=\"static/bundle.js\"></script>\n")
-	for _, cssurl := range cssurls {
-		P("<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">\n", cssurl)
-	}
 	for _, jsurl := range jsurls {
-		P("<script src=\"%s\" defer></script>\n", jsurl)
+		P("<script defer src=\"%s\"></script>\n", jsurl)
 	}
 	P("<style>\n")
 	P(".myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}\n")
 	P("</style>\n")
 	P("</head>\n")
-	P("<body class=\"py-2 bg-white text-black text-base leading-6 myfont\">\n")
-	P("<div class=\"mx-auto max-w-screen-sm\">\n")
+	P("<body class=\"py-2 bg-white text-black text-base leading-6 myfont light\">\n")
+	P("<div id=\"container\" class=\"mx-auto max-w-screen-sm\">\n")
 }
 func printHtmlClose(P PrintFunc) {
 	P("</div>\n")
@@ -666,30 +662,32 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
-		printHtmlOpen(P, nil, nil, "FreeBlog")
+		printHtmlOpen(P, "FreeBlog", []string{"/static/bundle.js", "/static/login.js"})
 		printHeading(P)
 
-		P("<form class=\"mx-auto py-4 px-8 max-w-sm bg-gray-200 text-gray-800\">\n")
-		P("    <h1 class=\"font-bold mx-auto text-2xl mb-4 text-center\">Sign In</h1>\n")
-		P("    <div class=\"mb-2\">\n")
-		P("        <label class=\"block font-bold uppercase text-sm\" for=\"username\">username</label>\n")
-		P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"username\" name=\"username\" type=\"text\" value=\"robdelacruz\">\n")
-		P("    </div>\n")
-		P("    <div class=\"mb-4\">\n")
-		P("        <label class=\"block font-bold uppercase text-sm\" for=\"pwd\">password</label>\n")
-		P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"pwd\" name=\"pwd\" type=\"password\" value=\"password\">\n")
-		P("    </div>\n")
-		P("    <div class=\"mb-2\">\n")
-		P("        <p class=\"font-bold uppercase text-xs\">Incorrect username or password</p>\n")
-		P("    </div>\n")
-		P("    <div class=\"mb-4\">\n")
-		P("        <button class=\"inline w-full mx-auto py-1 px-2 border border-gray-500 bg-gray-400 font-bold mr-2\">Login</button>\n")
-		P("    </div>\n")
-		P("    <div class=\"flex flex-row justify-between\">\n")
-		P("        <a class=\"underline text-sm\" href=\"#a\">Create New Account</a>\n")
-		P("        <a class=\"underline text-sm\" href=\"#a\">Cancel</a>\n")
-		P("    </div>\n")
-		P("</form>\n")
+		/*
+			P("<form class=\"mx-auto py-4 px-8 max-w-sm bg-gray-200 text-gray-800\">\n")
+			P("    <h1 class=\"font-bold mx-auto text-2xl mb-4 text-center\">Sign In</h1>\n")
+			P("    <div class=\"mb-2\">\n")
+			P("        <label class=\"block font-bold uppercase text-sm\" for=\"username\">username</label>\n")
+			P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"username\" name=\"username\" type=\"text\" value=\"robdelacruz\">\n")
+			P("    </div>\n")
+			P("    <div class=\"mb-4\">\n")
+			P("        <label class=\"block font-bold uppercase text-sm\" for=\"pwd\">password</label>\n")
+			P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"pwd\" name=\"pwd\" type=\"password\" value=\"password\">\n")
+			P("    </div>\n")
+			P("    <div class=\"mb-2\">\n")
+			P("        <p class=\"font-bold uppercase text-xs\">Incorrect username or password</p>\n")
+			P("    </div>\n")
+			P("    <div class=\"mb-4\">\n")
+			P("        <button class=\"inline w-full mx-auto py-1 px-2 border border-gray-500 bg-gray-400 font-bold mr-2\">Login</button>\n")
+			P("    </div>\n")
+			P("    <div class=\"flex flex-row justify-between\">\n")
+			P("        <a class=\"underline text-sm\" href=\"#a\">Create New Account</a>\n")
+			P("        <a class=\"underline text-sm\" href=\"#a\">Cancel</a>\n")
+			P("    </div>\n")
+			P("</form>\n")
+		*/
 
 		printHtmlClose(P)
 	}
@@ -699,7 +697,7 @@ func entryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
-		printHtmlOpen(P, nil, nil, "FreeBlog")
+		printHtmlOpen(P, "FreeBlog", nil)
 		printHeading(P)
 		printSampleEntry(P)
 		printHtmlClose(P)
