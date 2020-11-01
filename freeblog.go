@@ -85,6 +85,7 @@ func run(args []string) error {
 	http.HandleFunc("/api/deluser/", apideluserHandler(db))
 
 	http.HandleFunc("/login/", loginHandler(db))
+	http.HandleFunc("/logout/", logoutHandler(db))
 	http.HandleFunc("/entry/", entryHandler(db))
 
 	port := "8000"
@@ -378,6 +379,39 @@ type LoginResult struct {
 	Error string `json:"error"`
 }
 
+func setLoginCookie(w http.ResponseWriter, username, tok string) {
+	c := http.Cookie{
+		Name:  "usernametok",
+		Value: fmt.Sprintf("%s|%s", username, tok),
+		Path:  "/",
+		// Expires: time.Now().Add(24 * time.Hour),
+	}
+	http.SetCookie(w, &c)
+}
+func delLoginCookie(w http.ResponseWriter) {
+	c := http.Cookie{
+		Name:   "usernametok",
+		Value:  "",
+		Path:   "/",
+		MaxAge: 0,
+	}
+	http.SetCookie(w, &c)
+}
+func readLoginCookie(r *http.Request) (string, string) {
+	c, err := r.Cookie("usernametok")
+	if err != nil {
+		return "", ""
+	}
+
+	var username, tok string
+	ss := strings.Split(c.Value, "|")
+	username = ss[0]
+	if len(ss) > 1 {
+		tok = ss[1]
+	}
+	return username, tok
+}
+
 func apiloginHandler(db *sql.DB) http.HandlerFunc {
 	type LoginReq struct {
 		Username string `json:"username"`
@@ -618,7 +652,7 @@ func printHtmlOpen(P PrintFunc, title string, jsurls []string) {
 	P(".myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}\n")
 	P("</style>\n")
 	P("</head>\n")
-	P("<body class=\"py-2 bg-white text-black text-base leading-6 myfont light\">\n")
+	P("<body class=\"py-2 text-base leading-6 myfont light\">\n")
 	P("<div id=\"container\" class=\"mx-auto max-w-screen-sm\">\n")
 }
 func printHtmlClose(P PrintFunc) {
@@ -626,25 +660,29 @@ func printHtmlClose(P PrintFunc) {
 	P("</body>\n")
 	P("</html>\n")
 }
-func printHeading(P PrintFunc) {
+func printHeading(P PrintFunc, r *http.Request) {
+	username, _ := readLoginCookie(r)
+
 	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-6 text-sm\"\n>")
 	P("    <div>\n")
 	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/\">FreeBlog</a></h1>\n")
 	P("        <a href=\"about.html\" class=\"self-end mr-2\">About</a>\n")
-	P("        <a href=\"#a\" class=\"bg-gray-400 text-gray-800 self-center rounded px-2 py-1 mr-1\">Add Entry</a>\n")
+	P("        <a href=\"#a\" class=\"pill self-center rounded px-2 py-1 mr-1\">Add Entry</a>\n")
 	P("    </div>\n")
 	P("    <div>\n")
-	P("        <div class=\"relative inline mr-2\">\n")
-	P("            <a class=\"mr-1\" href=\"#a\">\n")
-	P("                robdelacruz\n")
-	P("            </a>\n")
-	P("            <div class=\"hidden absolute top-auto right-0 py-1 bg-gray-200 text-gray-800 w-20 border border-gray-500 shadow-xs w-32\">\n")
-	P("                <a href=\"#a\" class=\"block leading-none px-2 py-1 hover:bg-gray-400 hover:text-gray-900\" role=\"menuitem\">Change Password</a>\n")
-	P("                <a href=\"#a\" class=\"block leading-none px-2 py-1 hover:bg-gray-400 hover:text-gray-900\" role=\"menuitem\">Delete Account</a>\n")
-	P("                <a href=\"#a\" class=\"block leading-none px-2 py-1 hover:bg-gray-400 hover:text-gray-900\" role=\"menuitem\">Reset LocalStorage</a>\n")
-	P("            </div>\n")
-	P("        </div>\n")
-	P("        <a href=\"#a\" class=\"inline self-end mr-1\">Logout</a>\n")
+	if username != "" {
+		P("        <div class=\"relative inline mr-2\">\n")
+		P("            <a class=\"mr-1\" href=\"#a\">%s</a>\n", escape(username))
+		P("            <div class=\"popmenu hidden absolute top-auto right-0 py-1 w-20 border border-gray-500 shadow-xs w-32\">\n")
+		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Change Password</a>\n")
+		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Delete Account</a>\n")
+		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1\" role=\"menuitem\">Reset LocalStorage</a>\n")
+		P("            </div>\n")
+		P("        </div>\n")
+		P("        <a href=\"/logout\" class=\"inline self-end mr-1\">Logout</a>\n")
+	} else {
+		P("        <a href=\"/login\" class=\"inline self-end mr-1\">Login</a>\n")
+	}
 	P("    </div>\n")
 	P("</div>\n")
 }
@@ -660,36 +698,61 @@ func printSampleEntry(P PrintFunc) {
 
 func loginHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var errmsg string
+		var f struct{ username, password string }
+
+		if r.Method == "POST" {
+			f.username = r.FormValue("username")
+			f.password = r.FormValue("password")
+			for {
+				tok, err := login(db, f.username, f.password)
+				if err != nil {
+					errmsg = fmt.Sprintf("%s", err)
+					break
+				}
+				setLoginCookie(w, f.username, tok)
+
+				http.Redirect(w, r, "/entry", http.StatusSeeOther)
+				return
+			}
+		}
+
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", []string{"/static/bundle.js", "/static/login.js"})
-		printHeading(P)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printHeading(P, r)
 
-		/*
-			P("<form class=\"mx-auto py-4 px-8 max-w-sm bg-gray-200 text-gray-800\">\n")
-			P("    <h1 class=\"font-bold mx-auto text-2xl mb-4 text-center\">Sign In</h1>\n")
+		P("<form action=\"/login/\" method=\"post\" class=\"mx-auto py-4 px-8 max-w-sm\">\n")
+		P("    <h1 class=\"font-bold mx-auto text-2xl mb-4 text-center\">Sign In</h1>\n")
+		P("    <div class=\"mb-2\">\n")
+		P("        <label class=\"block font-bold uppercase text-sm\" for=\"username\">username</label>\n")
+		P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"username\" name=\"username\" type=\"text\" value=\"%s\">\n", f.username)
+		P("    </div>\n")
+		P("    <div class=\"mb-4\">\n")
+		P("        <label class=\"block font-bold uppercase text-sm\" for=\"pwd\">password</label>\n")
+		P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"pwd\" name=\"pwd\" type=\"password\" value=\"%s\">\n", f.password)
+		P("    </div>\n")
+		if errmsg != "" {
 			P("    <div class=\"mb-2\">\n")
-			P("        <label class=\"block font-bold uppercase text-sm\" for=\"username\">username</label>\n")
-			P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"username\" name=\"username\" type=\"text\" value=\"robdelacruz\">\n")
+			P("        <p class=\"font-bold uppercase text-xs\">%s</p>\n", errmsg)
 			P("    </div>\n")
-			P("    <div class=\"mb-4\">\n")
-			P("        <label class=\"block font-bold uppercase text-sm\" for=\"pwd\">password</label>\n")
-			P("        <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"pwd\" name=\"pwd\" type=\"password\" value=\"password\">\n")
-			P("    </div>\n")
-			P("    <div class=\"mb-2\">\n")
-			P("        <p class=\"font-bold uppercase text-xs\">Incorrect username or password</p>\n")
-			P("    </div>\n")
-			P("    <div class=\"mb-4\">\n")
-			P("        <button class=\"inline w-full mx-auto py-1 px-2 border border-gray-500 bg-gray-400 font-bold mr-2\">Login</button>\n")
-			P("    </div>\n")
-			P("    <div class=\"flex flex-row justify-between\">\n")
-			P("        <a class=\"underline text-sm\" href=\"#a\">Create New Account</a>\n")
-			P("        <a class=\"underline text-sm\" href=\"#a\">Cancel</a>\n")
-			P("    </div>\n")
-			P("</form>\n")
-		*/
+		}
+		P("    <div class=\"mb-4\">\n")
+		P("        <button type=\"submit\" class=\"inline w-full mx-auto py-1 px-2 border border-gray-500 font-bold mr-2\">Login</button>\n")
+		P("    </div>\n")
+		P("    <div class=\"flex flex-row justify-between\">\n")
+		P("        <a class=\"underline text-sm\" href=\"#a\">Create New Account</a>\n")
+		P("        <a class=\"underline text-sm\" href=\"#a\">Cancel</a>\n")
+		P("    </div>\n")
+		P("</form>\n")
 
 		printHtmlClose(P)
+	}
+}
+func logoutHandler(db *sql.DB) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		delLoginCookie(w)
+		http.Redirect(w, r, "/entry", http.StatusSeeOther)
 	}
 }
 
@@ -698,7 +761,7 @@ func entryHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P)
+		printHeading(P, r)
 		printSampleEntry(P)
 		printHtmlClose(P)
 	}
