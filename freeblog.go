@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	//	"github.com/gorilla/feeds"
 	_ "github.com/mattn/go-sqlite3"
@@ -27,9 +28,11 @@ type User struct {
 }
 
 type Entry struct {
-	Entryid int64
-	Title   string
-	Body    string
+	Entryid  int64
+	Title    string
+	Body     string
+	Createdt string
+	Userid   int64
 }
 
 func main() {
@@ -116,7 +119,7 @@ func createTables(newfile string) {
 	ss := []string{
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
-		"CREATE TABLE entry (entry_id INTEGER PRIMARY KEY NOT NULL, title TEXT, body TEXT);",
+		"CREATE TABLE entry (entry_id INTEGER PRIMARY KEY NOT NULL, title TEXT, body TEXT, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
 	}
 
 	tx, err := db.Begin()
@@ -238,6 +241,18 @@ func unescapeUrl(qurl string) string {
 }
 func escape(s string) string {
 	return html.EscapeString(s)
+}
+
+func isodate(t time.Time) string {
+	return t.Format(time.RFC3339)
+}
+func parseisodate(s string) time.Time {
+	t, _ := time.Parse(time.RFC3339, s)
+	return t
+}
+func formatisodate(s string) string {
+	t := parseisodate(s)
+	return t.Format("2 Jan 2006")
 }
 
 func parseArgs(args []string) (map[string]string, []string) {
@@ -391,20 +406,20 @@ func readLoginCookie(r *http.Request) (string, string) {
 }
 
 // Reads and validates login cookie. If invalid username/token, return no user.
-func validateLoginCookie(db *sql.DB, r *http.Request) (string, string) {
+func validateLoginCookie(db *sql.DB, r *http.Request) (*User, string) {
 	username, tok := readLoginCookie(r)
 	if username == "" {
-		return "", ""
+		return nil, ""
 	}
 	u := findUser(db, username)
 	if u == nil {
-		return "", ""
+		return nil, ""
 	}
 	if !validateTok(tok, u) {
 		log.Printf("Token not validated for '%s' ", u.Username)
-		return "", ""
+		return nil, ""
 	}
-	return username, tok
+	return u, tok
 }
 
 var ErrLoginIncorrect = errors.New("Incorrect username or password")
@@ -501,19 +516,19 @@ func printHtmlClose(P PrintFunc) {
 	P("</body>\n")
 	P("</html>\n")
 }
-func printHeading(P PrintFunc, username string) {
+func printHeading(P PrintFunc, u *User) {
 	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-2 text-sm\"\n>")
 	P("    <div>\n")
 	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/\">FreeBlog</a></h1>\n")
 	P("        <a href=\"about.html\" class=\"self-end mr-2\">About</a>\n")
-	if username != "" {
+	if u != nil {
 		P("        <a href=\"/addentry\" class=\"pill self-center rounded px-2 py-1 mr-1\">Add Entry</a>\n")
 	}
 	P("    </div>\n")
 	P("    <div>\n")
-	if username != "" {
+	if u != nil {
 		P("        <div class=\"relative inline mr-2\">\n")
-		P("            <a class=\"mr-1\" href=\"/profile\">%s</a>\n", escape(username))
+		P("            <a class=\"mr-1\" href=\"/profile\">%s</a>\n", escape(u.Username))
 		P("            <div class=\"hidden popmenu absolute top-auto right-0 py-1 w-20 border border-gray-500 shadow-xs w-40\">\n")
 		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1 border-b\" role=\"menuitem\">Change Password</a>\n")
 		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1 border-b\" role=\"menuitem\">Delete Account</a>\n")
@@ -642,19 +657,19 @@ func printSampleEntry(P PrintFunc) {
 
 func indexHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, _ := validateLoginCookie(db, r)
+		u, _ := validateLoginCookie(db, r)
 
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P, username)
+		printHeading(P, u)
 		printHtmlClose(P)
 	}
 }
 
 func loginHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, _ := validateLoginCookie(db, r)
+		u, _ := validateLoginCookie(db, r)
 		var errmsg string
 		var f struct{ username, pwd string }
 
@@ -677,7 +692,7 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P, username)
+		printHeading(P, u)
 
 		printFormSmallOpen(P, "/login/", "Log In")
 		printFormInput(P, "username", "username", f.username)
@@ -698,7 +713,7 @@ func logoutHandler(db *sql.DB) func(http.ResponseWriter, *http.Request) {
 }
 func signupHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, _ := validateLoginCookie(db, r)
+		u, _ := validateLoginCookie(db, r)
 		var errmsg string
 		var f struct{ username, pwd, pwd2 string }
 
@@ -731,7 +746,7 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P, username)
+		printHeading(P, u)
 
 		printFormSmallOpen(P, "/signup/", "Sign Up")
 		printFormInput(P, "username", "username", f.username)
@@ -748,8 +763,8 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 
 func passwordHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, _ := validateLoginCookie(db, r)
-		if username == "" {
+		u, _ := validateLoginCookie(db, r)
+		if u == nil {
 			http.Error(w, "Must be logged in", 401)
 			return
 		}
@@ -766,17 +781,17 @@ func passwordHandler(db *sql.DB) http.HandlerFunc {
 					errmsg = "passwords don't match"
 					break
 				}
-				err := edituser(db, username, f.pwd, f.newpwd)
+				err := edituser(db, u.Username, f.pwd, f.newpwd)
 				if err != nil {
 					errmsg = fmt.Sprintf("%s", err)
 					break
 				}
-				tok, err := login(db, username, f.newpwd)
+				tok, err := login(db, u.Username, f.newpwd)
 				if err != nil {
 					errmsg = fmt.Sprintf("%s", err)
 					break
 				}
-				setLoginCookie(w, username, tok)
+				setLoginCookie(w, u.Username, tok)
 
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
@@ -786,7 +801,7 @@ func passwordHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P, username)
+		printHeading(P, u)
 
 		printFormSmallOpen(P, "/password/", "Change Password")
 		printFormInputPassword(P, "pwd", "password", f.pwd)
@@ -803,8 +818,8 @@ func passwordHandler(db *sql.DB) http.HandlerFunc {
 
 func profileHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, _ := validateLoginCookie(db, r)
-		if username == "" {
+		u, _ := validateLoginCookie(db, r)
+		if u == nil {
 			http.Error(w, "Must be logged in", 401)
 			return
 		}
@@ -812,9 +827,9 @@ func profileHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P, username)
+		printHeading(P, u)
 
-		printDivSmallOpen(P, escape(username))
+		printDivSmallOpen(P, escape(u.Username))
 		printDivFlex(P, "justify-start")
 		P("<div class=\"px-4\">\n")
 		P("    <a href=\"/password\" class=\"action block text-gray-800 border-b\">Change Password</a>\n")
@@ -832,8 +847,8 @@ func profileHandler(db *sql.DB) http.HandlerFunc {
 }
 
 func createEntry(db *sql.DB, e *Entry) (int64, error) {
-	s := "INSERT INTO entry (title, body) VALUES (?, ?)"
-	result, err := sqlexec(db, s, e.Title, e.Body)
+	s := "INSERT INTO entry (title, body, createdt, user_id) VALUES (?, ?, ?, ?)"
+	result, err := sqlexec(db, s, e.Title, e.Body, e.Createdt, e.Userid)
 	if err != nil {
 		return 0, err
 	}
@@ -845,8 +860,8 @@ func createEntry(db *sql.DB, e *Entry) (int64, error) {
 }
 func addentryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, _ := validateLoginCookie(db, r)
-		if username == "" {
+		u, _ := validateLoginCookie(db, r)
+		if u == nil {
 			http.Error(w, "Must be logged in", 401)
 			return
 		}
@@ -858,6 +873,8 @@ func addentryHandler(db *sql.DB) http.HandlerFunc {
 		if r.Method == "POST" {
 			e.Title = r.FormValue("title")
 			e.Body = r.FormValue("body")
+			e.Createdt = isodate(time.Now())
+			e.Userid = u.Userid
 			tags = r.FormValue("tags")
 
 			for {
@@ -880,7 +897,7 @@ func addentryHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P, username)
+		printHeading(P, u)
 
 		printFormOpen(P, "/addentry/", "New Entry")
 		printFormInput(P, "title", "title", e.Title)
@@ -897,12 +914,12 @@ func addentryHandler(db *sql.DB) http.HandlerFunc {
 
 func entryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, _ := validateLoginCookie(db, r)
+		u, _ := validateLoginCookie(db, r)
 
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P, username)
+		printHeading(P, u)
 		printSampleEntry(P)
 		printHtmlClose(P)
 	}
