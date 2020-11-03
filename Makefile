@@ -15,6 +15,7 @@ dep:
 	sudo apt install nodejs
 	sudo npm --force install -g npx
 	go get github.com/gorilla/feeds
+	go get github.com/shurcooL/github_flavored_markdown
 
 webtools:
 	npm install --save-dev tailwindcss

@@ -16,6 +16,7 @@ import (
 
 	//	"github.com/gorilla/feeds"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/shurcooL/github_flavored_markdown"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -254,6 +255,15 @@ func formatisodate(s string) string {
 	t := parseisodate(s)
 	return t.Format("2 Jan 2006")
 }
+func formatdate(s string) string {
+	t := parseisodate(s)
+	return t.Format("January 2, 2006")
+}
+
+func parseMarkdown(s string) string {
+	s = strings.ReplaceAll(s, "%", "%%")
+	return string(github_flavored_markdown.Markdown([]byte(s)))
+}
 
 func parseArgs(args []string) (map[string]string, []string) {
 	switches := map[string]string{}
@@ -344,6 +354,19 @@ func validateHash(shash, sinput string) bool {
 	return true
 }
 
+func findUserById(db *sql.DB, userid int64) *User {
+	s := "SELECT user_id, username, password FROM user WHERE user_id = ?"
+	row := db.QueryRow(s, userid)
+	var u User
+	err := row.Scan(&u.Userid, &u.Username, &u.HashedPwd)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return nil
+	}
+	return &u
+}
 func findUser(db *sql.DB, username string) *User {
 	s := "SELECT user_id, username, password FROM user WHERE username = ?"
 	row := db.QueryRow(s, username)
@@ -490,6 +513,34 @@ func deluser(db *sql.DB, username, pwd string) error {
 		return fmt.Errorf("DB error deleting user: %s", err)
 	}
 	return nil
+}
+
+func findEntry(db *sql.DB, entryid int64) *Entry {
+	s := "SELECT entry_id, title, body, createdt, user_id FROM entry WHERE entry_id = ?"
+	row := db.QueryRow(s, entryid)
+	var e Entry
+	err := row.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return nil
+	}
+	return &e
+}
+func findEntries(db *sql.DB) ([]*Entry, error) {
+	s := "SELECT entry_id, title, body, createdt, user_id FROM entry ORDER BY entry_id DESC"
+	rows, err := db.Query(s)
+	if err != nil {
+		return nil, err
+	}
+	var ee []*Entry
+	for rows.Next() {
+		var e Entry
+		rows.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid)
+		ee = append(ee, &e)
+	}
+	return ee, nil
 }
 
 //*** HTML template functions ***
@@ -643,28 +694,6 @@ func printDivFlex(P PrintFunc, justify string) {
 }
 func printDivClose(P PrintFunc) {
 	P("</div>\n")
-}
-
-func printSampleEntry(P PrintFunc) {
-	P("<h1 class=\"font-bold text-2xl mb-4\">The Things We Think and Do Not Say</h1>\n")
-	P("<div class=\"content\">\n")
-	P(`    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed purus massa, vulputate quis nibh nec, dictum congue magna. Vivamus in ligula ut massa sollicitudin dictum. Cras nisl ex, dapibus ac ligula et, convallis malesuada eros. Vestibulum porttitor pretium dolor a porta. Integer scelerisque maximus ex at imperdiet. Vestibulum blandit mollis porta. Sed gravida, metus eu lobortis rhoncus, justo nibh rutrum diam, eget auctor arcu nunc fermentum lorem. Sed vel urna sed dolor imperdiet sagittis eget eu leo. Vivamus facilisis ipsum quis cursus feugiat. Suspendisse potenti. Mauris pellentesque mauris at pretium posuere. Quisque accumsan condimentum purus, sed gravida eros rutrum non. Sed feugiat mauris tellus, a sollicitudin sapien gravida sed. Cras mollis suscipit ante et dapibus.
-
-        <p>Morbi mollis, quam vitae ornare fermentum, turpis tellus feugiat dolor, ac auctor lorem orci at velit. Integer at facilisis dui. Praesent in lorem vel nulla dictum convallis. Sed cursus posuere leo, quis iaculis nibh vulputate faucibus. Nulla mollis aliquet dictum. Suspendisse libero tortor, tincidunt eu massa ut, vestibulum suscipit velit. Vivamus vel ornare est. Quisque mollis nec dolor ut sodales. Nunc dolor turpis, finibus sit amet dignissim quis, iaculis mollis augue. Donec sollicitudin nibh a viverra lobortis. Vivamus sed venenatis massa. Praesent in ligula nec nisi placerat fermentum elementum vitae velit. Nam efficitur neque tellus, quis accumsan nisl gravida iaculis. Vestibulum maximus ut est sit amet consequat. Praesent bibendum, massa vel viverra malesuada, tortor turpis ultricies odio, eu vestibulum ante felis facilisis magna.
-`)
-	P("</div>\n")
-}
-
-func indexHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printHeading(P, u)
-		printHtmlClose(P)
-	}
 }
 
 func loginHandler(db *sql.DB) http.HandlerFunc {
@@ -832,8 +861,8 @@ func profileHandler(db *sql.DB) http.HandlerFunc {
 		printDivSmallOpen(P, escape(u.Username))
 		printDivFlex(P, "justify-start")
 		P("<div class=\"px-4\">\n")
-		P("    <a href=\"/password\" class=\"action block text-gray-800 border-b\">Change Password</a>\n")
-		P("    <a href=\"#\" class=\"action block text-gray-800 border-b\">Delete Account</a>\n")
+		P("    <a href=\"/password\" class=\"action block border-b\">Change Password</a>\n")
+		P("    <a href=\"#\" class=\"action block border-b\">Delete Account</a>\n")
 		P("</div>\n")
 		P("<div class=\"px-4\">\n")
 		P("</div>\n")
@@ -916,11 +945,65 @@ func entryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
 
+		id := idtoi(r.FormValue("id"))
+		if id == 0 {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+		entry := findEntry(db, id)
+		if entry == nil {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
 		printHeading(P, u)
-		printSampleEntry(P)
+		printEntry(P, db, u, entry)
+		printHtmlClose(P)
+	}
+}
+func printEntry(P PrintFunc, db *sql.DB, u *User, e *Entry) {
+	var authorname string
+	author := findUserById(db, e.Userid)
+	if author != nil {
+		authorname = author.Username
+	}
+
+	P("<h1 class=\"font-bold text-2xl mt-4\">%s</h1>\n", escape(e.Title))
+	if authorname != "" {
+		P("<p class=\"mt-2 mb-4\">Posted on <span class=\"italic\">%s</span> by <a href=\"#\" class=\"action\">%s</a></p>\n", formatdate(e.Createdt), authorname)
+	} else {
+		P("<p class=\"mt-2 mb-4\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
+	}
+	P("<div class=\"content\">\n")
+	P("%s\n", parseMarkdown(e.Body))
+	P("</div>\n")
+}
+
+func indexHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, _ := validateLoginCookie(db, r)
+		ee, err := findEntries(db)
+		if handleDbErr(w, err, "indexHandler") {
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printHeading(P, u)
+
+		for _, e := range ee {
+			P("<p>\n")
+			P("    <a class=\"action\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
+			if u.Userid == e.Userid {
+				P("    <a class=\"px-2 py-1 rounded mx-1 pill text-xs\" href=\"/editentry?id=%d\">Edit</a>\n", e.Entryid)
+			}
+			P("</p>\n")
+		}
+
 		printHtmlClose(P)
 	}
 }

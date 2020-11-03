@@ -26,6 +26,10 @@
 .popmenu {@apply bg-gray-200 text-gray-800;}
 .popmenu a:hover {@apply bg-gray-400 text-gray-900;}
 
+.action {@apply border-b;}
+.light .action {@apply text-gray-800;}
+.dark .action {@apply text-gray-400 border-gray-700;}
+
 .light {@apply bg-white text-black;}
 .light .panel {@apply bg-gray-200 text-gray-800;}
 .light button {@apply bg-gray-400;}
