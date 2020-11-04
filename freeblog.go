@@ -995,14 +995,22 @@ func indexHandler(db *sql.DB) http.HandlerFunc {
 		printHtmlOpen(P, "FreeBlog", nil)
 		printHeading(P, u)
 
+		P("<table class=\"table-auto\">\n")
+		P("<tbody>\n")
 		for _, e := range ee {
-			P("<p>\n")
-			P("    <a class=\"action\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
+			P("<tr>\n")
+			P("    <td class=\"px-4 py-1\">\n")
+			P("        <a class=\"action\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
+			P("    </td>\n")
 			if u.Userid == e.Userid {
-				P("    <a class=\"px-2 py-1 rounded mx-1 pill text-xs\" href=\"/editentry?id=%d\">Edit</a>\n", e.Entryid)
+				P("    <td class=\"px-4 py-1\">\n")
+				P("        <a class=\"px-2 py-1 rounded mx-1 pill text-xs\" href=\"/editentry?id=%d\">Edit</a>\n", e.Entryid)
+				P("    </td>\n")
 			}
-			P("</p>\n")
+			P("</tr>\n")
 		}
+		P("</tbody>\n")
+		P("</table>\n")
 
 		printHtmlClose(P)
 	}
