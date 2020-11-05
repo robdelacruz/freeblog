@@ -233,15 +233,21 @@ func atof(s string) float64 {
 	return f
 }
 
-func unescapeUrl(qurl string) string {
-	returl := "/"
-	if qurl != "" {
-		returl, _ = url.QueryUnescape(qurl)
+func qunescape(s string) string {
+	us, err := url.QueryUnescape(s)
+	if err != nil {
+		us = s
 	}
-	return returl
+	return us
+}
+func qescape(s string) string {
+	return url.QueryEscape(s)
 }
 func escape(s string) string {
 	return html.EscapeString(s)
+}
+func unescape(s string) string {
+	return html.UnescapeString(s)
 }
 
 func isodate(t time.Time) string {
@@ -257,7 +263,7 @@ func formatisodate(s string) string {
 }
 func formatdate(s string) string {
 	t := parseisodate(s)
-	return t.Format("January 2, 2006")
+	return t.Format("2 Jan 2006")
 }
 
 func parseMarkdown(s string) string {
@@ -568,7 +574,7 @@ func printHtmlClose(P PrintFunc) {
 	P("</html>\n")
 }
 func printHeading(P PrintFunc, u *User) {
-	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-2 text-sm\"\n>")
+	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm\"\n>")
 	P("    <div>\n")
 	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/\">FreeBlog</a></h1>\n")
 	P("        <a href=\"about.html\" class=\"self-end mr-2\">About</a>\n")
@@ -971,11 +977,11 @@ func printEntry(P PrintFunc, db *sql.DB, u *User, e *Entry) {
 		authorname = author.Username
 	}
 
-	P("<h1 class=\"font-bold text-2xl mt-4\">%s</h1>\n", escape(e.Title))
+	P("<h1 class=\"font-bold text-2xl mb-2\">%s</h1>\n", escape(e.Title))
 	if authorname != "" {
-		P("<p class=\"mt-2 mb-4\">Posted on <span class=\"italic\">%s</span> by <a href=\"#\" class=\"action\">%s</a></p>\n", formatdate(e.Createdt), authorname)
+		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span> by <a href=\"#\" class=\"action\">%s</a></p>\n", formatdate(e.Createdt), authorname)
 	} else {
-		P("<p class=\"mt-2 mb-4\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
+		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
 	}
 	P("<div class=\"content\">\n")
 	P("%s\n", parseMarkdown(e.Body))
@@ -995,22 +1001,22 @@ func indexHandler(db *sql.DB) http.HandlerFunc {
 		printHtmlOpen(P, "FreeBlog", nil)
 		printHeading(P, u)
 
-		P("<table class=\"table-auto\">\n")
-		P("<tbody>\n")
+		P("<h1 class=\"font-bold text-xl mb-2\">Latest Posts</h1>\n")
 		for _, e := range ee {
-			P("<tr>\n")
-			P("    <td class=\"px-4 py-1\">\n")
-			P("        <a class=\"action\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
-			P("    </td>\n")
-			if u.Userid == e.Userid {
-				P("    <td class=\"px-4 py-1\">\n")
-				P("        <a class=\"px-2 py-1 rounded mx-1 pill text-xs\" href=\"/editentry?id=%d\">Edit</a>\n", e.Entryid)
-				P("    </td>\n")
-			}
-			P("</tr>\n")
+			P("<div class=\"flex flex-row py-1\">\n")
+			P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
+			P("    <p class=\"flex-grow px-4\">\n")
+			P("        <a class=\"action font-bold\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
+			P("    </p>\n")
+			P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(u.Username), escape(u.Username))
+			P("</div>\n")
+
+			/*
+				if u.Userid == e.Userid {
+					P("        <a class=\"px-2 py-1 rounded mx-1 pill text-xs\" href=\"/editentry?id=%d\">Edit</a>\n", e.Entryid)
+				}
+			*/
 		}
-		P("</tbody>\n")
-		P("</table>\n")
 
 		printHtmlClose(P)
 	}

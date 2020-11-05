@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreeBlog</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<style>
+.myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}
+</style>
+<script defer src="bundle.js"></script>
+</head>
+<body class="py-2 text-base leading-6 myfont light">
+<div class="mx-auto max-w-screen-sm">
+    <div class="flex flex-row justify-between border-b border-gray-500 pb-1 mb-2 text-sm">
+        <div>
+            <h1 class="inline self-end ml-1 mr-2 font-bold"><a href="/">FreeBlog</a></h1>
+            <a href="about.html" class="self-end mr-2">About</a>
+            <a href="#a" class="pill self-center rounded px-2 py-1 mr-1">Add Entry</a>
+        </div>
+        <div>
+            <div class="relative inline mr-2">
+                <a class="mr-1" href="#a">
+                    robdelacruz
+                </a>
+                <div class="hidden popmenu absolute top-auto right-0 py-1 border border-gray-500 shadow-xs w-40">
+                    <a href="#a" class="block leading-none px-2 py-1 border-b" role="menuitem">Change Password</a>
+                    <a href="#a" class="block leading-none px-2 py-1 border-b" role="menuitem">Delete Account</a>
+                    <a href="#a" class="block leading-none px-2 py-1 border-b" role="menuitem">Reset LocalStorage</a>
+                </div>
+            </div>
+            <a href="#a" class="inline self-end mr-1">Logout</a>
+        </div>
+    </div>
+
+    <h1 class="font-bold text-xl my-2">Latest Posts</h1>
+    <div class="flex flex-row py-1">
+        <p class="text-xs text-gray-700">5 Nov 2020</p>
+        <p class="flex-grow px-4">
+            <a class="action font-bold" href="/entry?id=1">Lorem Ipsum</a>
+        </p>
+        <a class="text-xs text-gray-700 px-2" href="#">robdelacruz</a>
+    </div>
+    <div class="flex flex-row py-1">
+        <p class="text-xs text-gray-700">31 Jul 2019</p>
+        <p class="flex-grow px-4">
+            <a class="action font-bold" href="/entry?id=1">Now is the time for all good men</a>
+        </p>
+        <a class="text-xs text-gray-700 px-2" href="#">admin</a>
+    </div>
+</div>
+</body>
+</html>
+
