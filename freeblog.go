@@ -34,6 +34,7 @@ type Entry struct {
 	Body     string
 	Createdt string
 	Userid   int64
+	Username string
 }
 
 func main() {
@@ -93,6 +94,7 @@ func run(args []string) error {
 	http.HandleFunc("/password/", passwordHandler(db))
 	http.HandleFunc("/profile/", profileHandler(db))
 	http.HandleFunc("/addentry/", addentryHandler(db))
+	http.HandleFunc("/editentry/", editentryHandler(db))
 	http.HandleFunc("/entry/", entryHandler(db))
 
 	port := "8000"
@@ -522,10 +524,13 @@ func deluser(db *sql.DB, username, pwd string) error {
 }
 
 func findEntry(db *sql.DB, entryid int64) *Entry {
-	s := "SELECT entry_id, title, body, createdt, user_id FROM entry WHERE entry_id = ?"
+	s := `SELECT entry_id, title, body, createdt, u.user_id, IFNULL(u.username, '') 
+FROM entry e
+LEFT OUTER JOIN user u ON u.user_id = e.user_id 
+WHERE entry_id = ?`
 	row := db.QueryRow(s, entryid)
 	var e Entry
-	err := row.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid)
+	err := row.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid, &e.Username)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -535,7 +540,10 @@ func findEntry(db *sql.DB, entryid int64) *Entry {
 	return &e
 }
 func findEntries(db *sql.DB) ([]*Entry, error) {
-	s := "SELECT entry_id, title, body, createdt, user_id FROM entry ORDER BY entry_id DESC"
+	s := `SELECT entry_id, title, body, createdt, u.user_id, IFNULL(u.username, '') 
+FROM entry e
+LEFT OUTER JOIN user u ON u.user_id = e.user_id 
+ORDER BY entry_id DESC`
 	rows, err := db.Query(s)
 	if err != nil {
 		return nil, err
@@ -543,7 +551,7 @@ func findEntries(db *sql.DB) ([]*Entry, error) {
 	var ee []*Entry
 	for rows.Next() {
 		var e Entry
-		rows.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid)
+		rows.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid, &e.Username)
 		ee = append(ee, &e)
 	}
 	return ee, nil
@@ -893,6 +901,14 @@ func createEntry(db *sql.DB, e *Entry) (int64, error) {
 	}
 	return entryid, nil
 }
+func editEntry(db *sql.DB, e *Entry) error {
+	s := "UPDATE entry SET title = ?, body = ? WHERE entry_id = ?"
+	_, err := sqlexec(db, s, e.Title, e.Body, e.Entryid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func addentryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
@@ -946,18 +962,79 @@ func addentryHandler(db *sql.DB) http.HandlerFunc {
 		printHtmlClose(P)
 	}
 }
+func editentryHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, _ := validateLoginCookie(db, r)
+		if u == nil {
+			http.Error(w, "Must be logged in", 401)
+			return
+		}
+
+		qid := idtoi(r.FormValue("id"))
+		if qid == 0 {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+		e := findEntry(db, qid)
+		if e == nil {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+
+		var errmsg string
+		var tags string
+
+		if r.Method == "POST" {
+			e.Title = r.FormValue("title")
+			e.Body = r.FormValue("body")
+			tags = r.FormValue("tags")
+
+			for {
+				if e.Title == "" {
+					errmsg = "enter a title"
+					break
+				}
+				err := editEntry(db, e)
+				if err != nil {
+					logErr("editEntry", err)
+					errmsg = "server error edit entry"
+					break
+				}
+
+				http.Redirect(w, r, fmt.Sprintf("/entry?id=%d", e.Entryid), http.StatusSeeOther)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printHeading(P, u)
+
+		printFormOpen(P, fmt.Sprintf("/editentry/?id=%d", e.Entryid), "Edit Entry")
+		printFormInput(P, "title", "title", e.Title)
+		printFormTextarea(P, "body", "entry", e.Body, "")
+		printFormInput(P, "tags", "tags", tags)
+		printFormError(P, errmsg)
+		printFormSubmit(P, "Submit")
+		printFormLinks(P, "justify-end", "/", "Cancel")
+		printFormClose(P)
+
+		printHtmlClose(P)
+	}
+}
 
 func entryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
 
-		id := idtoi(r.FormValue("id"))
-		if id == 0 {
+		qid := idtoi(r.FormValue("id"))
+		if qid == 0 {
 			http.Error(w, "Not found.", 404)
 			return
 		}
-		entry := findEntry(db, id)
-		if entry == nil {
+		e := findEntry(db, qid)
+		if e == nil {
 			http.Error(w, "Not found.", 404)
 			return
 		}
@@ -966,20 +1043,20 @@ func entryHandler(db *sql.DB) http.HandlerFunc {
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
 		printHeading(P, u)
-		printEntry(P, db, u, entry)
+		printEntry(P, db, e, u)
 		printHtmlClose(P)
 	}
 }
-func printEntry(P PrintFunc, db *sql.DB, u *User, e *Entry) {
-	var authorname string
-	author := findUserById(db, e.Userid)
-	if author != nil {
-		authorname = author.Username
-	}
-
+func printEntry(P PrintFunc, db *sql.DB, e *Entry, u *User) {
 	P("<h1 class=\"font-bold text-2xl mb-2\">%s</h1>\n", escape(e.Title))
-	if authorname != "" {
-		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span> by <a href=\"#\" class=\"action\">%s</a></p>\n", formatdate(e.Createdt), authorname)
+	if e.Username != "" {
+		P("<p class=\"mb-4 text-sm\">Posted on \n")
+		P("    <span class=\"italic\">%s</span> by \n", formatdate(e.Createdt))
+		P("    <a href=\"#\" class=\"action\">%s</a>\n", e.Username)
+		if u != nil && e.Userid == u.Userid {
+			P("    <a href=\"/editentry?id=%d\" class=\"pill rounded px-2 py-1 mx-1\">Edit</a>\n", e.Entryid)
+		}
+		P("</p>\n")
 	} else {
 		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
 	}
@@ -1008,7 +1085,7 @@ func indexHandler(db *sql.DB) http.HandlerFunc {
 			P("    <p class=\"flex-grow px-4\">\n")
 			P("        <a class=\"action font-bold\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
 			P("    </p>\n")
-			P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(u.Username), escape(u.Username))
+			P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
 			P("</div>\n")
 
 			/*
