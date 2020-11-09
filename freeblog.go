@@ -573,13 +573,20 @@ func printHtmlOpen(P PrintFunc, title string, jsurls []string) {
 	P(".myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}\n")
 	P("</style>\n")
 	P("</head>\n")
-	P("<body class=\"py-2 text-base leading-6 myfont light\">\n")
-	P("<div id=\"container\" class=\"mx-auto max-w-screen-sm\">\n")
+	P("<body class=\"text-base leading-6 myfont light\">\n")
 }
 func printHtmlClose(P PrintFunc) {
-	P("</div>\n")
 	P("</body>\n")
 	P("</html>\n")
+}
+func printContainerOpen(P PrintFunc) {
+	P("<div id=\"container\" class=\"flex flex-col py-2 mx-auto max-w-screen-sm\">\n")
+}
+func printContainerHscreenOpen(P PrintFunc) {
+	P("<div id=\"container\" class=\"flex flex-col py-2 mx-auto max-w-screen-sm h-screen\">\n")
+}
+func printContainerClose(P PrintFunc) {
+	P("</div>\n")
 }
 func printHeading(P PrintFunc, u *User) {
 	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm\"\n>")
@@ -608,15 +615,15 @@ func printHeading(P PrintFunc, u *User) {
 	P("</div>\n")
 }
 func printFormOpen(P PrintFunc, action, heading string) {
-	P("<form action=\"%s\" method=\"post\" class=\"panel mx-auto py-4 px-8 text-sm\">\n", action)
+	P("<form action=\"%s\" method=\"post\" class=\"flex-grow flex flex-col panel mx-auto py-2 px-8 text-sm w-full\">\n", action)
 	if heading != "" {
-		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-xl\">%s</h1>\n", heading)
+		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-base\">%s</h1>\n", heading)
 	}
 }
 func printFormSmallOpen(P PrintFunc, action, heading string) {
-	P("<form action=\"%s\" method=\"post\" class=\"panel mx-auto py-4 px-8 text-sm max-w-sm\">\n", action)
+	P("<form action=\"%s\" method=\"post\" class=\"flex-grow flex flex-col panel mx-auto py-2 px-8 text-sm max-w-sm\">\n", action)
 	if heading != "" {
-		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-xl\">%s</h1>\n", heading)
+		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-base\">%s</h1>\n", heading)
 	}
 }
 func printFormClose(P PrintFunc) {
@@ -634,13 +641,10 @@ func printFormInputPassword(P PrintFunc, id, label, val string) {
 	P("    <input class=\"block border border-gray-500 py-1 px-4 w-full\" id=\"%[1]s\" name=\"%[1]s\" type=\"password\" value=\"%s\">\n", id, val)
 	P("</div>\n")
 }
-func printFormTextarea(P PrintFunc, id, label, val, rows string) {
-	if rows == "" {
-		rows = "22"
-	}
-	P("<div class=\"mb-2\">\n")
+func printFormTextarea(P PrintFunc, id, label, val string) {
+	P("<div class=\"flex-grow flex flex-col mb-2\">\n")
 	P("    <label class=\"block font-bold uppercase text-xs\" for=\"%s\">%s</label>\n", id, label)
-	P("    <textarea class=\"block border border-gray-500 py-1 px-4 w-full leading-5\" id=\"%[1]s\" name=\"%[1]s\" rows=\"%s\">%s</textarea>\n", id, rows, val)
+	P("    <textarea class=\"flex-grow block border border-gray-500 py-1 px-4 w-full leading-5\" id=\"%[1]s\" name=\"%[1]s\">%s</textarea>\n", id, val)
 	P("</div>\n")
 }
 func printFormError(P PrintFunc, errmsg string) {
@@ -694,13 +698,13 @@ func printFormLinks(P PrintFunc, justify string, ss ...string) {
 func printDivOpen(P PrintFunc, heading string) {
 	P("<div class=\"panel mx-auto py-4 px-8 text-sm\">\n")
 	if heading != "" {
-		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-xl\">%s</h1>\n", heading)
+		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-base\">%s</h1>\n", heading)
 	}
 }
 func printDivSmallOpen(P PrintFunc, heading string) {
 	P("<div class=\"panel mx-auto py-4 px-8 text-sm max-w-sm\">\n")
 	if heading != "" {
-		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-xl\">%s</h1>\n", heading)
+		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-base\">%s</h1>\n", heading)
 	}
 }
 func printDivFlex(P PrintFunc, justify string) {
@@ -735,6 +739,7 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
 		printHeading(P, u)
 
 		printFormSmallOpen(P, "/login/", "Log In")
@@ -745,6 +750,7 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 		printFormLinks(P, "", "/signup", "Create New Account", "/", "Cancel")
 		printFormClose(P)
 
+		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
@@ -789,6 +795,7 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
 		printHeading(P, u)
 
 		printFormSmallOpen(P, "/signup/", "Sign Up")
@@ -800,6 +807,7 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		printFormLinks(P, "justify-end", "/", "Cancel")
 		printFormClose(P)
 
+		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
@@ -844,6 +852,7 @@ func passwordHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
 		printHeading(P, u)
 
 		printFormSmallOpen(P, "/password/", "Change Password")
@@ -855,6 +864,7 @@ func passwordHandler(db *sql.DB) http.HandlerFunc {
 		printFormLinks(P, "justify-end", "/", "Cancel")
 		printFormClose(P)
 
+		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
@@ -870,6 +880,7 @@ func profileHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
 		printHeading(P, u)
 
 		printDivSmallOpen(P, escape(u.Username))
@@ -885,6 +896,7 @@ func profileHandler(db *sql.DB) http.HandlerFunc {
 		printDivClose(P)
 		printDivClose(P)
 
+		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
@@ -948,17 +960,19 @@ func addentryHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerHscreenOpen(P)
 		printHeading(P, u)
 
 		printFormOpen(P, "/addentry/", "New Entry")
 		printFormInput(P, "title", "title", e.Title)
-		printFormTextarea(P, "body", "entry", e.Body, "")
+		printFormTextarea(P, "body", "entry", e.Body)
 		printFormInput(P, "tags", "tags", tags)
 		printFormError(P, errmsg)
 		printFormSubmit(P, "Submit")
 		printFormLinks(P, "justify-end", "/", "Cancel")
 		printFormClose(P)
 
+		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
@@ -1009,17 +1023,19 @@ func editentryHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerHscreenOpen(P)
 		printHeading(P, u)
 
 		printFormOpen(P, fmt.Sprintf("/editentry/?id=%d", e.Entryid), "Edit Entry")
 		printFormInput(P, "title", "title", e.Title)
-		printFormTextarea(P, "body", "entry", e.Body, "")
+		printFormTextarea(P, "body", "entry", e.Body)
 		printFormInput(P, "tags", "tags", tags)
 		printFormError(P, errmsg)
 		printFormSubmit(P, "Submit")
 		printFormLinks(P, "justify-end", "/", "Cancel")
 		printFormClose(P)
 
+		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
@@ -1042,8 +1058,12 @@ func entryHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
 		printHeading(P, u)
+
 		printEntry(P, db, e, u)
+
+		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
@@ -1076,9 +1096,10 @@ func indexHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
 		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
 		printHeading(P, u)
 
-		P("<h1 class=\"font-bold text-xl mb-2\">Latest Posts</h1>\n")
+		P("<h1 class=\"font-bold text-lg mb-2\">Latest Posts</h1>\n")
 		for _, e := range ee {
 			P("<div class=\"flex flex-row py-1\">\n")
 			P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
@@ -1095,6 +1116,7 @@ func indexHandler(db *sql.DB) http.HandlerFunc {
 			*/
 		}
 
+		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
