@@ -16,7 +16,7 @@
         <div>
             <h1 class="inline self-end ml-1 mr-2 font-bold"><a href="/">FreeBlog</a></h1>
             <a href="about.html" class="self-end mr-2">About</a>
-            <a href="#a" class="pill self-center rounded px-2 py-1 mr-1">Add Entry</a>
+            <a href="#a" class="hidden pill self-center rounded px-2 py-1 mr-1">Add Entry</a>
         </div>
         <div>
             <div class="relative inline mr-2">
@@ -28,7 +28,13 @@
         </div>
     </div>
     <form class="flex-grow flex flex-col panel mx-auto py-2 px-8 text-sm w-full">
-        <h1 class="font-bold mx-auto mb-1 text-center text-base">New Entry</h1>
+        <div class="flex flex-row justify-between">
+            <h1 class="1hidden font-bold mb-1 text-base">New Entry</h1>
+            <div class="flex flex-row justify-start">
+                <a class="pill text-xs px-2 py-0 rounded mr-2" href="#a">Upload Files</a>
+                <a class="pill text-xs px-2 py-0 rounded mr-2" href="#a">Preview</a>
+            </div>
+        </div>
         <div class="mb-2">
             <label class="block font-bold uppercase text-xs" for="title">title</label>
             <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="title" name="title" type="text" value="The Things We Think and Do Not Say">
