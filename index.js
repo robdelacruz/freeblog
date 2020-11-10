@@ -1,6 +1,9 @@
-import LoginForm from "./LoginForm.svelte";
+import EditUploadEntry from "./EditUploadEntry.svelte";
 
-window.AddLoginForm = function(el) {
-    return new LoginForm({target: el});
+window.addEditUploadEntry = function(el) {
+    return new EditUploadEntry({
+        target: el,
+        props: {},
+    });
 }
 

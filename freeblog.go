@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -29,12 +30,20 @@ type User struct {
 }
 
 type Entry struct {
-	Entryid  int64
-	Title    string
-	Body     string
-	Createdt string
-	Userid   int64
-	Username string
+	Entryid  int64  `json:"entryid"`
+	Title    string `json:"title"`
+	Body     string `json:"body"`
+	Createdt string `json:"createdt"`
+	Userid   int64  `json:"userid"`
+	Username string `json:"username"`
+}
+
+func (e *Entry) String() string {
+	bs, err := json.MarshalIndent(e, "", "\t")
+	if err != nil {
+		return ""
+	}
+	return string(bs)
 }
 
 func main() {
@@ -88,6 +97,7 @@ func run(args []string) error {
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/radio.ico") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/", indexHandler(db))
+	http.HandleFunc("/entry/", entryHandler(db))
 	http.HandleFunc("/login/", loginHandler(db))
 	http.HandleFunc("/logout/", logoutHandler(db))
 	http.HandleFunc("/signup/", signupHandler(db))
@@ -95,7 +105,9 @@ func run(args []string) error {
 	http.HandleFunc("/profile/", profileHandler(db))
 	http.HandleFunc("/addentry/", addentryHandler(db))
 	http.HandleFunc("/editentry/", editentryHandler(db))
-	http.HandleFunc("/entry/", entryHandler(db))
+	http.HandleFunc("/editupload/", edituploadHandler(db))
+
+	http.HandleFunc("/api/entry/", apientryHandler(db))
 
 	port := "8000"
 	if len(parms) > 1 {
@@ -714,6 +726,106 @@ func printDivClose(P PrintFunc) {
 	P("</div>\n")
 }
 
+func apientryHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		qid := idtoi(r.FormValue("id"))
+		if qid == 0 {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+		e := findEntry(db, qid)
+		if e == nil {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		P := makeFprintf(w)
+		P("%s\n", e)
+	}
+}
+
+func indexHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, _ := validateLoginCookie(db, r)
+		ee, err := findEntries(db)
+		if handleDbErr(w, err, "indexHandler") {
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
+		printHeading(P, u)
+
+		P("<h1 class=\"font-bold text-lg mb-2\">Latest Posts</h1>\n")
+		for _, e := range ee {
+			P("<div class=\"flex flex-row py-1\">\n")
+			P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
+			P("    <p class=\"flex-grow px-4\">\n")
+			P("        <a class=\"action font-bold\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
+			P("    </p>\n")
+			P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
+			P("</div>\n")
+
+			/*
+				if u.Userid == e.Userid {
+					P("        <a class=\"px-2 py-1 rounded mx-1 pill text-xs\" href=\"/editentry?id=%d\">Edit</a>\n", e.Entryid)
+				}
+			*/
+		}
+
+		printContainerClose(P)
+		printHtmlClose(P)
+	}
+}
+
+func entryHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, _ := validateLoginCookie(db, r)
+
+		qid := idtoi(r.FormValue("id"))
+		if qid == 0 {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+		e := findEntry(db, qid)
+		if e == nil {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
+		printHeading(P, u)
+
+		printEntry(P, db, e, u)
+
+		printContainerClose(P)
+		printHtmlClose(P)
+	}
+}
+func printEntry(P PrintFunc, db *sql.DB, e *Entry, u *User) {
+	P("<h1 class=\"font-bold text-2xl mb-2\">%s</h1>\n", escape(e.Title))
+	if e.Username != "" {
+		P("<p class=\"mb-4 text-sm\">Posted on \n")
+		P("    <span class=\"italic\">%s</span> by \n", formatdate(e.Createdt))
+		P("    <a href=\"#\" class=\"action\">%s</a>\n", e.Username)
+		if u != nil && e.Userid == u.Userid {
+			P("    <a href=\"/editentry?id=%d\" class=\"pill rounded px-2 py-1 mx-1\">Edit</a>\n", e.Entryid)
+		}
+		P("</p>\n")
+	} else {
+		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
+	}
+	P("<div class=\"content\">\n")
+	P("%s\n", parseMarkdown(e.Body))
+	P("</div>\n")
+}
+
 func loginHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
@@ -1040,9 +1152,13 @@ func editentryHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func entryHandler(db *sql.DB) http.HandlerFunc {
+func edituploadHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
+		if u == nil {
+			http.Error(w, "Must be logged in", 401)
+			return
+		}
 
 		qid := idtoi(r.FormValue("id"))
 		if qid == 0 {
@@ -1055,66 +1171,36 @@ func entryHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printContainerOpen(P)
-		printHeading(P, u)
+		//		var errmsg string
+		//		var tags string
 
-		printEntry(P, db, e, u)
+		if r.Method == "POST" {
+			e.Title = r.FormValue("title")
+			e.Body = r.FormValue("body")
+			//			tags = r.FormValue("tags")
 
-		printContainerClose(P)
-		printHtmlClose(P)
-	}
-}
-func printEntry(P PrintFunc, db *sql.DB, e *Entry, u *User) {
-	P("<h1 class=\"font-bold text-2xl mb-2\">%s</h1>\n", escape(e.Title))
-	if e.Username != "" {
-		P("<p class=\"mb-4 text-sm\">Posted on \n")
-		P("    <span class=\"italic\">%s</span> by \n", formatdate(e.Createdt))
-		P("    <a href=\"#\" class=\"action\">%s</a>\n", e.Username)
-		if u != nil && e.Userid == u.Userid {
-			P("    <a href=\"/editentry?id=%d\" class=\"pill rounded px-2 py-1 mx-1\">Edit</a>\n", e.Entryid)
-		}
-		P("</p>\n")
-	} else {
-		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
-	}
-	P("<div class=\"content\">\n")
-	P("%s\n", parseMarkdown(e.Body))
-	P("</div>\n")
-}
-
-func indexHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-		ee, err := findEntries(db)
-		if handleDbErr(w, err, "indexHandler") {
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printContainerOpen(P)
-		printHeading(P, u)
-
-		P("<h1 class=\"font-bold text-lg mb-2\">Latest Posts</h1>\n")
-		for _, e := range ee {
-			P("<div class=\"flex flex-row py-1\">\n")
-			P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
-			P("    <p class=\"flex-grow px-4\">\n")
-			P("        <a class=\"action font-bold\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
-			P("    </p>\n")
-			P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
-			P("</div>\n")
-
-			/*
-				if u.Userid == e.Userid {
-					P("        <a class=\"px-2 py-1 rounded mx-1 pill text-xs\" href=\"/editentry?id=%d\">Edit</a>\n", e.Entryid)
+			for {
+				if e.Title == "" {
+					//					errmsg = "enter a title"
+					break
 				}
-			*/
+				err := editEntry(db, e)
+				if err != nil {
+					logErr("editEntry", err)
+					//					errmsg = "server error edit entry"
+					break
+				}
+
+				http.Redirect(w, r, fmt.Sprintf("/entry?id=%d", e.Entryid), http.StatusSeeOther)
+				return
+			}
 		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", []string{"/static/bundle.js", "/static/edituploadentry.js"})
+		printContainerHscreenOpen(P)
+		printHeading(P, u)
 
 		printContainerClose(P)
 		printHtmlClose(P)
