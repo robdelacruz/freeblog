@@ -19,12 +19,16 @@ let blankentry = {
 };
 let entry = blankentry;
 let tags = "";
+
 init(qid);
 
 async function init(qid) {
     if (qid != null) {
         try {
             entry = await findentry(qid);
+            if (entry == null) {
+                entry = blankentry;
+            }
         } catch(err) {
             console.error(err);
         }
@@ -37,6 +41,7 @@ function getqid() {
 }
 
 function onupload(e) {
+    e.preventDefault();
     ui.showupload = !ui.showupload;
 
     container.classList.remove("max-w-screen-lg");
@@ -48,6 +53,7 @@ function onupload(e) {
     }
 }
 function onuploadclose(e) {
+    e.preventDefault();
     container.classList.remove("max-w-screen-lg");
     container.classList.add("max-w-screen-sm");
     ui.showupload = false;
@@ -57,11 +63,40 @@ async function findentry(entryid) {
     let sreq = `${svcurl}/entry?id=${entryid}`;
     let res = await fetch(sreq, {method: "GET"});
     if (!res.ok) {
+        if (res.status == 404) {
+            return null;
+        }
         let err = await res.text();
         return Promise.reject(err);
     }
-    let e = await res.json();
-    return e;
+    let entry = await res.json();
+    return entry;
+}
+
+async function onsubmit(e) {
+    e.preventDefault();
+    let sreq = `${svcurl}/entry/`;
+    let method = "";
+    if (e.entryid == 0) {
+        method = "POST";
+    } else {
+        method = "PUT";
+    }
+
+    entryform.status = "";
+    let res = await fetch(sreq, {
+        method: method,
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(entry),
+    });
+    if (!res.ok) {
+        let err = await res.text();
+        console.error(err);
+        entryform.status = "server error submitting entry";
+        return;
+    }
+    let retentry = await res.json();
+    window.location.replace(`/entry?id=${retentry.entryid}`);
 }
 </script>
 
@@ -96,7 +131,7 @@ async function findentry(entryid) {
         </div>
 {/if}
         <div class="flex flex-row justify-center mb-2 justify-center">
-                <button class="inline w-full py-1 px-2 border border-gray-500 font-bold">Submit</button>
+            <button class="inline w-full py-1 px-2 border border-gray-500 font-bold" on:click={onsubmit}>Submit</button>
         </div>
         <div class="flex flex-row justify-end">
             <a class="text-xs" href="#a">Cancel</a>

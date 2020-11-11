@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -726,22 +727,75 @@ func printDivClose(P PrintFunc) {
 	P("</div>\n")
 }
 
+// GET /api/entry?id=123
+// POST /api/entry {...}
+// PUT /api/entry {...}
 func apientryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		qid := idtoi(r.FormValue("id"))
-		if qid == 0 {
-			http.Error(w, "Not found.", 404)
+		if r.Method == "GET" {
+			qid := idtoi(r.FormValue("id"))
+			if qid == 0 {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+			e := findEntry(db, qid)
+			if e == nil {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", e)
 			return
-		}
-		e := findEntry(db, qid)
-		if e == nil {
-			http.Error(w, "Not found.", 404)
+		} else if r.Method == "POST" {
+			bs, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				handleErr(w, err, "POST apientryHandler")
+				return
+			}
+			var e Entry
+			err = json.Unmarshal(bs, &e)
+			if err != nil {
+				handleErr(w, err, "POST apientryHandler")
+				return
+			}
+			newid, err := createEntry(db, &e)
+			if err != nil {
+				handleErr(w, err, "POST apientryHandler")
+				return
+			}
+			e.Entryid = newid
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", &e)
+			return
+		} else if r.Method == "PUT" {
+			bs, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				handleErr(w, err, "PUT apientryHandler")
+				return
+			}
+			var e Entry
+			err = json.Unmarshal(bs, &e)
+			if err != nil {
+				handleErr(w, err, "PUT apientryHandler")
+				return
+			}
+			err = editEntry(db, &e)
+			if err != nil {
+				handleErr(w, err, "PUT apientryHandler")
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", &e)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		P := makeFprintf(w)
-		P("%s\n", e)
+		http.Error(w, "Use GET/POST/PUT", 401)
 	}
 }
 
