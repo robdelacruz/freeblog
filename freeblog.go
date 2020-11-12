@@ -29,11 +29,18 @@ type User struct {
 	Username  string
 	HashedPwd string
 }
-
 type Entry struct {
 	Entryid  int64  `json:"entryid"`
 	Title    string `json:"title"`
 	Body     string `json:"body"`
+	Createdt string `json:"createdt"`
+	Userid   int64  `json:"userid"`
+	Username string `json:"username"`
+}
+type File struct {
+	Fileid   int64  `json:"fileid"`
+	Filename string `json:"filename"`
+	Bytes    []byte `json:"bytes"`
 	Createdt string `json:"createdt"`
 	Userid   int64  `json:"userid"`
 	Username string `json:"username"`
@@ -109,6 +116,8 @@ func run(args []string) error {
 	http.HandleFunc("/editupload/", edituploadHandler(db))
 
 	http.HandleFunc("/api/entry/", apientryHandler(db))
+	//	http.HandleFunc("/api/files/", apifilesHandler(db))
+	http.HandleFunc("/api/uploadfiles/", apiuploadfilesHandler(db))
 
 	port := "8000"
 	if len(parms) > 1 {
@@ -136,6 +145,7 @@ func createTables(newfile string) {
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
 		"CREATE TABLE entry (entry_id INTEGER PRIMARY KEY NOT NULL, title TEXT, body TEXT, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
+		"CREATE TABLE file (file_id INTEGER PRIMARY KEY NOT NULL, filename TEXT, bytes BLOB, createdt TEXT NOT NULL, user_id INTEGER NOT NULL));",
 	}
 
 	tx, err := db.Begin()
@@ -727,78 +737,6 @@ func printDivClose(P PrintFunc) {
 	P("</div>\n")
 }
 
-// GET /api/entry?id=123
-// POST /api/entry {...}
-// PUT /api/entry {...}
-func apientryHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			qid := idtoi(r.FormValue("id"))
-			if qid == 0 {
-				http.Error(w, "Not found.", 404)
-				return
-			}
-			e := findEntry(db, qid)
-			if e == nil {
-				http.Error(w, "Not found.", 404)
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			P := makeFprintf(w)
-			P("%s\n", e)
-			return
-		} else if r.Method == "POST" {
-			bs, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				handleErr(w, err, "POST apientryHandler")
-				return
-			}
-			var e Entry
-			err = json.Unmarshal(bs, &e)
-			if err != nil {
-				handleErr(w, err, "POST apientryHandler")
-				return
-			}
-			newid, err := createEntry(db, &e)
-			if err != nil {
-				handleErr(w, err, "POST apientryHandler")
-				return
-			}
-			e.Entryid = newid
-
-			w.Header().Set("Content-Type", "application/json")
-			P := makeFprintf(w)
-			P("%s\n", &e)
-			return
-		} else if r.Method == "PUT" {
-			bs, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				handleErr(w, err, "PUT apientryHandler")
-				return
-			}
-			var e Entry
-			err = json.Unmarshal(bs, &e)
-			if err != nil {
-				handleErr(w, err, "PUT apientryHandler")
-				return
-			}
-			err = editEntry(db, &e)
-			if err != nil {
-				handleErr(w, err, "PUT apientryHandler")
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			P := makeFprintf(w)
-			P("%s\n", &e)
-			return
-		}
-
-		http.Error(w, "Use GET/POST/PUT", 401)
-	}
-}
-
 func indexHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
@@ -1258,5 +1196,132 @@ func edituploadHandler(db *sql.DB) http.HandlerFunc {
 
 		printContainerClose(P)
 		printHtmlClose(P)
+	}
+}
+
+// GET /api/entry?id=123
+// POST /api/entry {...}
+// PUT /api/entry {...}
+func apientryHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			qid := idtoi(r.FormValue("id"))
+			if qid == 0 {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+			e := findEntry(db, qid)
+			if e == nil {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", e)
+			return
+		} else if r.Method == "POST" {
+			bs, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				handleErr(w, err, "POST apientryHandler")
+				return
+			}
+			var e Entry
+			err = json.Unmarshal(bs, &e)
+			if err != nil {
+				handleErr(w, err, "POST apientryHandler")
+				return
+			}
+			newid, err := createEntry(db, &e)
+			if err != nil {
+				handleErr(w, err, "POST apientryHandler")
+				return
+			}
+			e.Entryid = newid
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", &e)
+			return
+		} else if r.Method == "PUT" {
+			bs, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				handleErr(w, err, "PUT apientryHandler")
+				return
+			}
+			var e Entry
+			err = json.Unmarshal(bs, &e)
+			if err != nil {
+				handleErr(w, err, "PUT apientryHandler")
+				return
+			}
+			err = editEntry(db, &e)
+			if err != nil {
+				handleErr(w, err, "PUT apientryHandler")
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", &e)
+			return
+		}
+
+		http.Error(w, "Use GET/POST/PUT", 401)
+	}
+}
+
+func createFile(db *sql.DB, f *File) (int64, error) {
+	s := "INSERT INTO file (filename, bytes, createdt, user_id) VALUES (?, ?, ?, ?)"
+	result, err := sqlexec(db, s, f.Filename, f.Bytes, f.Createdt, f.Userid)
+	if err != nil {
+		return 0, err
+	}
+	fileid, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return fileid, nil
+}
+
+//$$ todo handle duplicate filenames
+func apiuploadfilesHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST method", 401)
+			return
+		}
+
+		r.ParseMultipartForm(32 << 20)
+		hh := r.MultipartForm.File["files"]
+		for _, h := range hh {
+			f, err := h.Open()
+			if err != nil {
+				handleErr(w, err, "apiuploadfilesHandler")
+				return
+			}
+			defer f.Close()
+
+			var file File
+			bs, err := ioutil.ReadAll(f)
+			if err != nil {
+				handleErr(w, err, "apiuploadfilesHandler")
+				return
+			}
+			file.Filename = h.Filename
+			file.Bytes = bs
+			file.Createdt = isodate(time.Now())
+
+			_, err = createFile(db, &file)
+			if err != nil {
+				handleErr(w, err, "apiuploadfilesHandler")
+				return
+			}
+		}
+	}
+}
+
+func apisearchfilesHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 	}
 }

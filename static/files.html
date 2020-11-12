@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreeBlog</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<style>
+.myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}
+</style>
+<script defer src="files.js"></script>
+</head>
+<body class="bg-white text-black text-base leading-6 myfont light">
+<div id="container" class="flex flex-col py-2 mx-auto max-w-screen-lg h-screen">
+    <div class="flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm">
+        <div>
+            <h1 class="inline self-end ml-1 mr-2 font-bold"><a href="/">FreeBlog</a></h1>
+            <a href="about.html" class="self-end mr-2">About</a>
+            <a href="#a" class="hidden pill self-center rounded px-2 py-1 mr-1">Add Entry</a>
+        </div>
+        <div>
+            <div class="relative inline mr-2">
+                <a class="mr-1" href="#a">
+                    robdelacruz
+                </a>
+            </div>
+            <a href="#a" class="inline self-end mr-1">Logout</a>
+        </div>
+    </div>
+
+    <form id="uploadfiles" action="/api/uploadfiles/" method="post" enctype="multipart/form-data" class="flex-grow flex flex-col panel mx-auto py-2 px-4 text-sm w-1/3">
+        <div class="flex flex-row justify-between">
+            <h1 class="font-bold mb-1 text-base">Upload Images</h1>
+            <div class="flex flex-row justify-start">
+                <a class="action self-center rounded text-xs px-1 py-0 mr-2" href="#a">Close</a>
+            </div>
+        </div>
+        <div class="mb-2">
+            <label class="block font-bold uppercase text-xs" for="files">Select</label>
+            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="files" name="files" type="file" multiple>
+        </div>
+        <div class="flex flex-row justify-center mb-2 justify-center">
+                <button id="upload" class="inline w-full py-1 px-2 border border-gray-500 font-bold">Upload</button>
+        </div>
+        <div class="flex flex-row flex-wrap mb-2 justify-start">
+            <img class="w-20 h-20 border p-2" src="lky.png">
+            <img class="w-20 h-20 border p-2" src="sheep_vote.jpeg">
+            <img class="w-20 h-20 border p-2" src="buster2.jpg">
+            <img class="w-20 h-20 border p-2" src="lucy_youngcage.jpg">
+            <img class="w-20 h-20 border p-2" src="small_lucy_ref.png">
+            <img class="w-20 h-20 border p-2" src="floppy-disk_emoji.png">
+            <img class="w-20 h-20 border p-2" src="lky_remembered.jpg">
+            <img class="w-20 h-20 border p-2" src="wewokeuplikethis.jpg">
+            <img class="w-20 h-20 border p-2" src="wednesday_coffee.jpg">
+        </div>
+    </form>
+</body>
+</html>
+
