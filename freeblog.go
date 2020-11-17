@@ -113,7 +113,7 @@ func run(args []string) error {
 	http.HandleFunc("/profile/", profileHandler(db))
 	http.HandleFunc("/addentry/", addentryHandler(db))
 	http.HandleFunc("/editentry/", editentryHandler(db))
-	http.HandleFunc("/editupload/", edituploadHandler(db))
+	http.HandleFunc("/dashboard/", dashboardHandler(db))
 
 	http.HandleFunc("/api/entry/", apientryHandler(db))
 	//	http.HandleFunc("/api/files/", apifilesHandler(db))
@@ -604,6 +604,9 @@ func printHtmlClose(P PrintFunc) {
 }
 func printContainerOpen(P PrintFunc) {
 	P("<div id=\"container\" class=\"flex flex-col py-2 mx-auto max-w-screen-sm\">\n")
+}
+func printWideContainerOpen(P PrintFunc) {
+	P("<div id=\"container\" class=\"flex flex-col py-2 mx-auto max-w-screen-lg\">\n")
 }
 func printContainerHscreenOpen(P PrintFunc) {
 	P("<div id=\"container\" class=\"flex flex-col py-2 mx-auto max-w-screen-sm h-screen\">\n")
@@ -1144,7 +1147,7 @@ func editentryHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func edituploadHandler(db *sql.DB) http.HandlerFunc {
+func dashboardHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
 		if u == nil {
@@ -1152,46 +1155,10 @@ func edituploadHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		qid := idtoi(r.FormValue("id"))
-		if qid == 0 {
-			http.Error(w, "Not found.", 404)
-			return
-		}
-		e := findEntry(db, qid)
-		if e == nil {
-			http.Error(w, "Not found.", 404)
-			return
-		}
-
-		//		var errmsg string
-		//		var tags string
-
-		if r.Method == "POST" {
-			e.Title = r.FormValue("title")
-			e.Body = r.FormValue("body")
-			//			tags = r.FormValue("tags")
-
-			for {
-				if e.Title == "" {
-					//					errmsg = "enter a title"
-					break
-				}
-				err := editEntry(db, e)
-				if err != nil {
-					logErr("editEntry", err)
-					//					errmsg = "server error edit entry"
-					break
-				}
-
-				http.Redirect(w, r, fmt.Sprintf("/entry?id=%d", e.Entryid), http.StatusSeeOther)
-				return
-			}
-		}
-
 		w.Header().Set("Content-Type", "text/html")
 		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", []string{"/static/bundle.js", "/static/edituploadentry.js"})
-		printContainerHscreenOpen(P)
+		printHtmlOpen(P, "FreeBlog", []string{"/static/bundle.js", "/static/dashboard.js"})
+		printWideContainerOpen(P)
 		printHeading(P, u)
 
 		printContainerClose(P)

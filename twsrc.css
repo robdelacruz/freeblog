@@ -31,7 +31,7 @@
 .dark .action {@apply text-gray-400 border-gray-700;}
 
 .light {@apply bg-white text-black;}
-.light .panel {@apply bg-gray-200 text-gray-800;}
+.light .panel {@apply border border-gray-400 bg-gray-100 text-gray-800;}
 .light button {@apply bg-gray-400;}
 
 .dark {@apply bg-gray-900 text-gray-200;}

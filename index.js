@@ -1,7 +1,7 @@
-import EditUploadEntry from "./EditUploadEntry.svelte";
+import Dashboard from "./Dashboard.svelte";
 
-window.addEditUploadEntry = function(el) {
-    return new EditUploadEntry({
+window.addDashboard = function(el) {
+    return new Dashboard({
         target: el,
         props: {},
     });
