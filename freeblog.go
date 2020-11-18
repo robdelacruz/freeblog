@@ -116,7 +116,7 @@ func run(args []string) error {
 	http.HandleFunc("/dashboard/", dashboardHandler(db))
 
 	http.HandleFunc("/api/entry/", apientryHandler(db))
-	//	http.HandleFunc("/api/files/", apifilesHandler(db))
+	http.HandleFunc("/api/entries/", apientriesHandler(db))
 	http.HandleFunc("/api/uploadfiles/", apiuploadfilesHandler(db))
 
 	port := "8000"
@@ -568,6 +568,24 @@ FROM entry e
 LEFT OUTER JOIN user u ON u.user_id = e.user_id 
 ORDER BY entry_id DESC`
 	rows, err := db.Query(s)
+	if err != nil {
+		return nil, err
+	}
+	var ee []*Entry
+	for rows.Next() {
+		var e Entry
+		rows.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid, &e.Username)
+		ee = append(ee, &e)
+	}
+	return ee, nil
+}
+func findEntriesByUsername(db *sql.DB, username string) ([]*Entry, error) {
+	s := `SELECT entry_id, title, body, createdt, u.user_id, IFNULL(u.username, '') 
+FROM entry e
+LEFT OUTER JOIN user u ON u.user_id = e.user_id 
+WHERE u.username = ? 
+ORDER BY entry_id DESC`
+	rows, err := db.Query(s, username)
 	if err != nil {
 		return nil, err
 	}
@@ -1235,6 +1253,32 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		http.Error(w, "Use GET/POST/PUT", 401)
+	}
+}
+
+// GET /api/entries?username=rob
+func apientriesHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var ee []*Entry
+		var err error
+
+		qusername := r.FormValue("username")
+		if qusername != "" {
+			ee, err = findEntriesByUsername(db, qusername)
+		} else {
+			ee, err = findEntries(db)
+		}
+		if err != nil {
+			handleErr(w, err, "apientriesHandler")
+		}
+
+		bs, err := json.MarshalIndent(ee, "", "\t")
+		if err != nil {
+			handleErr(w, err, "apientriesHandler")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		P := makeFprintf(w)
+		P("%s\n", string(bs))
 	}
 }
 
