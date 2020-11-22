@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -547,7 +548,7 @@ func deluser(db *sql.DB, username, pwd string) error {
 }
 
 func findEntry(db *sql.DB, entryid int64) *Entry {
-	s := `SELECT entry_id, title, body, createdt, u.user_id, IFNULL(u.username, '') 
+	s := `SELECT entry_id, title, body, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
 FROM entry e
 LEFT OUTER JOIN user u ON u.user_id = e.user_id 
 WHERE entry_id = ?`
@@ -1282,7 +1283,45 @@ func apientriesHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func findFileByFilename(db *sql.DB, filename string) *File {
+	s := `SELECT file_id, filename, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
+FROM file f
+LEFT OUTER JOIN user u ON u.user_id = f.user_id 
+WHERE filename = ?`
+	row := db.QueryRow(s, filename)
+	var f File
+	err := row.Scan(&f.Fileid, &f.Filename, &f.Bytes, &f.Createdt, &f.Userid, &f.Username)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return nil
+	}
+	return &f
+}
+
+// If another file has the same filename, add a (n) to make unique.
+// Ex. "Abc File", "Abc File (1)", "Abc File (2)", etc.
+func makeUniqueFilename(db *sql.DB, filename string) string {
+	uniqueFilename := filename
+	for i := 1; i < 100; i++ {
+		f := findFileByFilename(db, uniqueFilename)
+		if f == nil {
+			return uniqueFilename
+		}
+		ext := filepath.Ext(filename)
+		base := strings.TrimSuffix(filename, ext)
+		uniqueFilename = fmt.Sprintf("%s (%d)%s", base, i, ext)
+	}
+
+	// If code reached this point, that means we're at (100) which is very unusual.
+	// Rather than risk an overly long loop, let's just cap it off at (100).
+	return uniqueFilename
+}
+
 func createFile(db *sql.DB, f *File) (int64, error) {
+	f.Filename = makeUniqueFilename(db, f.Filename)
+
 	s := "INSERT INTO file (filename, bytes, createdt, user_id) VALUES (?, ?, ?, ?)"
 	result, err := sqlexec(db, s, f.Filename, f.Bytes, f.Createdt, f.Userid)
 	if err != nil {
