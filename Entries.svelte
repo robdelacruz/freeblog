@@ -17,29 +17,34 @@ export let username = "";
 let svcurl = "/api";
 let ui = {};
 ui.entries = [];
-ui.err = "";
+ui.status = "";
 
 init(username);
 
 async function init(username) {
-    try {
-        ui.entries = await findentries(username);
-    } catch(err) {
+    ui.status = "";
+    let [ee, err] = await findentries(username);
+    if (err != null) {
         console.error(err);
-        ui.entries = [];
-        ui.err = err;
+        ui.status = "Server error while fetching entries";
     }
+    ui.entries = ee;
 }
 
+// Returns []entries, error
 async function findentries(username) {
     let sreq = `${svcurl}/entries?username=${username}`;
-    let res = await fetch(sreq, {method: "GET"});
-    if (!res.ok) {
-        let err = await res.text();
-        return Promise.reject(err);
+    try {
+        let res = await fetch(sreq, {method: "GET"});
+        if (!res.ok) {
+            let s = await res.text();
+            return [[], new Error(s)];
+        }
+        let entries = await res.json();
+        return [entries, null];
+    } catch (err) {
+        return [[], err];
     }
-    let entries = await res.json();
-    return entries;
 }
 
 </script>

@@ -1,4 +1,4 @@
-<form class="flex flex-col panel py-2 px-4 text-sm mb-2">
+<form class="flex flex-col panel py-2 px-4 text-sm mb-2" bind:this={frm} on:submit={onsubmit}>
     <div class="flex flex-row justify-between">
         <h1 class="font-bold mb-1 text-base">Upload Images</h1>
         <div class="flex flex-row justify-start">
@@ -6,17 +6,87 @@
         </div>
     </div>
     <div class="mb-2">
-        <label class="block font-bold uppercase text-xs" for="images">Select</label>
-        <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="images" name="images" type="file" multiple>
+        <label class="block font-bold uppercase text-xs" for="files">Select</label>
+        <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="files" name="files" type="file" multiple bind:files={files}>
     </div>
+    <div class="flex flex-row flex-wrap mb-2 justify-start">
+{#if files != null}
+    {#each files as previewfile (previewfile.name)}
+        <img class="w-20 h-20 border p-2" alt="pic" use:setimgsrc={previewfile}>
+    {/each}
+{/if}
+    </div>
+{#if ui.status != ""}
     <div class="mb-2">
-        <p class="uppercase italic text-xs">Processing...</p>
+        <p class="uppercase italic text-xs">{ui.status}</p>
     </div>
+{/if}
+{#if ui.err != ""}
     <div class="mb-2">
-        <p class="font-bold uppercase text-xs">Server error uploading files</p>
+        <p class="font-bold uppercase text-xs">{ui.err}</p>
     </div>
+{/if}
     <div class="flex flex-row justify-center mb-2 justify-center">
             <button class="inline w-full py-1 px-2 border border-gray-500 font-bold">Upload</button>
     </div>
 </form>
+
+<script>
+let svcurl = "/api";
+let frm;
+let inputfiles;
+let files;
+let ui = {};
+ui.status = "";
+ui.err = "";
+
+function setimgsrc(node, previewfile) {
+    let fr = new FileReader();
+    fr.readAsDataURL(previewfile)
+    fr.onloadend = function() {
+        node.setAttribute("src", fr.result);
+    }
+}
+
+async function onsubmit(e) {
+    e.preventDefault();
+    if (files == null) {
+        ui.err = "Please select image(s) to upload.";
+        return;
+    }
+
+    ui.status = "Processing...";
+    ui.err = "";
+
+    let fd = new FormData(frm);
+    let err = await submitform(fd);
+    if (err != null) {
+        console.error(err);
+        ui.err = "Server error while uploading images";
+        ui.status = "";
+        return;
+    }
+
+    files = null;
+    frm.reset();
+    ui.status = "";
+}
+
+async function submitform(formdata) {
+    let sreq = `${svcurl}/uploadfiles/`;
+    try {
+        let res = await fetch(sreq, {
+            method: "POST",
+            body: formdata,
+        });
+        if (!res.ok) {
+            let s = await res.text();
+            return new Error(s);
+        }
+        return null;
+    } catch(err) {
+        return err;
+    }
+}
+</script>
 
