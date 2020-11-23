@@ -12,7 +12,10 @@
     <div class="flex flex-row flex-wrap mb-2 justify-start">
 {#if files != null}
     {#each files as previewfile (previewfile.name)}
-        <img class="w-20 h-20 border p-2" alt="pic" use:setimgsrc={previewfile}>
+        <div class="flex flex-col items-center border px-1 pt-1">
+            <img class="w-20 h-20" alt="{previewfile.name}" use:setimgsrc={previewfile}>
+            <p class="text-xs">{previewfile.name}</p>
+        </div>
     {/each}
 {/if}
     </div>

@@ -41,7 +41,8 @@ type Entry struct {
 type File struct {
 	Fileid   int64  `json:"fileid"`
 	Filename string `json:"filename"`
-	Bytes    []byte `json:"bytes"`
+	Url      string `json:"url"`
+	Bytes    []byte `json:"-"`
 	Createdt string `json:"createdt"`
 	Userid   int64  `json:"userid"`
 	Username string `json:"username"`
@@ -53,6 +54,9 @@ func (e *Entry) String() string {
 		return ""
 	}
 	return string(bs)
+}
+func fileurl(f *File) string {
+	return fmt.Sprintf("/file/?filename=%s", f.Filename)
 }
 
 func main() {
@@ -107,6 +111,7 @@ func run(args []string) error {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/", indexHandler(db))
 	http.HandleFunc("/entry/", entryHandler(db))
+	http.HandleFunc("/file/", fileHandler(db))
 	http.HandleFunc("/login/", loginHandler(db))
 	http.HandleFunc("/logout/", logoutHandler(db))
 	http.HandleFunc("/signup/", signupHandler(db))
@@ -119,6 +124,7 @@ func run(args []string) error {
 	http.HandleFunc("/api/entry/", apientryHandler(db))
 	http.HandleFunc("/api/entries/", apientriesHandler(db))
 	http.HandleFunc("/api/uploadfiles/", apiuploadfilesHandler(db))
+	http.HandleFunc("/api/files/", apifilesHandler(db))
 
 	port := "8000"
 	if len(parms) > 1 {
@@ -563,12 +569,27 @@ WHERE entry_id = ?`
 	}
 	return &e
 }
-func findEntries(db *sql.DB) ([]*Entry, error) {
-	s := `SELECT entry_id, title, body, createdt, u.user_id, IFNULL(u.username, '') 
+func findEntries(db *sql.DB, qusername string, qlimit, qoffset int) ([]*Entry, error) {
+	swhere := "1 = 1"
+	var qq []interface{}
+
+	if qusername != "" {
+		swhere += " AND u.username = ?"
+		qq = append(qq, qusername)
+	}
+	if qlimit == 0 {
+		// Use an arbitrarily large number to indicate no limit
+		qlimit = 10000
+	}
+	qq = append(qq, qlimit, qoffset)
+
+	s := fmt.Sprintf(`SELECT entry_id, title, body, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
 FROM entry e
 LEFT OUTER JOIN user u ON u.user_id = e.user_id 
-ORDER BY entry_id DESC`
-	rows, err := db.Query(s)
+WHERE %s 
+ORDER BY entry_id DESC 
+LIMIT ? OFFSET ?`, swhere)
+	rows, err := db.Query(s, qq...)
 	if err != nil {
 		return nil, err
 	}
@@ -580,23 +601,75 @@ ORDER BY entry_id DESC`
 	}
 	return ee, nil
 }
-func findEntriesByUsername(db *sql.DB, username string) ([]*Entry, error) {
-	s := `SELECT entry_id, title, body, createdt, u.user_id, IFNULL(u.username, '') 
-FROM entry e
-LEFT OUTER JOIN user u ON u.user_id = e.user_id 
-WHERE u.username = ? 
-ORDER BY entry_id DESC`
-	rows, err := db.Query(s, username)
+
+func findFile(db *sql.DB, fileid int64) *File {
+	s := `SELECT file_id, filename, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
+FROM file f
+LEFT OUTER JOIN user u ON u.user_id = f.user_id 
+WHERE file_id = ?`
+	row := db.QueryRow(s, fileid)
+	var f File
+	err := row.Scan(&f.Fileid, &f.Filename, &f.Bytes, &f.Createdt, &f.Userid, &f.Username)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return nil
+	}
+	return &f
+}
+func findFileByFilename(db *sql.DB, filename string) *File {
+	s := `SELECT file_id, filename, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
+FROM file f
+LEFT OUTER JOIN user u ON u.user_id = f.user_id 
+WHERE filename = ?`
+	row := db.QueryRow(s, filename)
+	var f File
+	err := row.Scan(&f.Fileid, &f.Filename, &f.Bytes, &f.Createdt, &f.Userid, &f.Username)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return nil
+	}
+	return &f
+}
+func findFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]*File, error) {
+	swhere := "1 = 1"
+	var qq []interface{}
+
+	if qusername != "" {
+		swhere += " AND u.username = ?"
+		qq = append(qq, qusername)
+	}
+	if qfilename != "" {
+		swhere += " AND filename LIKE ?"
+		qq = append(qq, fmt.Sprintf("%%%s%%", qfilename))
+	}
+	if qlimit == 0 {
+		// Use an arbitrarily large number to indicate no limit
+		qlimit = 10000
+	}
+	qq = append(qq, qlimit, qoffset)
+
+	s := fmt.Sprintf(`SELECT file_id, filename, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
+FROM file f
+LEFT OUTER JOIN user u ON u.user_id = f.user_id 
+WHERE %s 
+ORDER BY file_id DESC 
+LIMIT ? OFFSET ?`, swhere)
+	rows, err := db.Query(s, qq...)
 	if err != nil {
 		return nil, err
 	}
-	var ee []*Entry
+	var ff []*File
 	for rows.Next() {
-		var e Entry
-		rows.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid, &e.Username)
-		ee = append(ee, &e)
+		var f File
+		rows.Scan(&f.Fileid, &f.Filename, &f.Createdt, &f.Userid, &f.Username)
+		f.Url = fileurl(&f)
+		ff = append(ff, &f)
 	}
-	return ee, nil
+	return ff, nil
 }
 
 //*** HTML template functions ***
@@ -762,7 +835,7 @@ func printDivClose(P PrintFunc) {
 func indexHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
-		ee, err := findEntries(db)
+		ee, err := findEntries(db, "", 0, 0)
 		if handleDbErr(w, err, "indexHandler") {
 			return
 		}
@@ -838,6 +911,53 @@ func printEntry(P PrintFunc, db *sql.DB, e *Entry, u *User) {
 	P("<div class=\"content\">\n")
 	P("%s\n", parseMarkdown(e.Body))
 	P("</div>\n")
+}
+
+func fileext(filename string) string {
+	ss := strings.Split(filename, ".")
+	if len(ss) < 2 {
+		return ""
+	}
+	return strings.ToLower(ss[len(ss)-1])
+}
+
+// GET /file?id=123
+// GET /file?filename=file1.jpg
+func fileHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		qid := idtoi(r.FormValue("id"))
+		qfilename := r.FormValue("filename")
+		if qid == 0 && qfilename == "" {
+			http.Error(w, "Specify id or filename (id=nnn or filename=file1.jpg)", 401)
+			return
+		}
+		var f *File
+		if qid > 0 {
+			f = findFile(db, qid)
+		} else if qfilename != "" {
+			f = findFileByFilename(db, qfilename)
+		}
+		if f == nil {
+			http.Error(w, "Not found.", 404)
+			return
+		}
+
+		ext := fileext(f.Filename)
+		if ext == "" {
+			w.Header().Set("Content-Type", "application")
+		} else if ext == "png" || ext == "gif" || ext == "bmp" {
+			w.Header().Set("Content-Type", fmt.Sprintf("image/%s", ext))
+		} else if ext == "jpg" || ext == "jpeg" {
+			w.Header().Set("Content-Type", fmt.Sprintf("image/jpeg"))
+		} else {
+			w.Header().Set("Content-Type", fmt.Sprintf("application/%s", ext))
+		}
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", f.Filename))
+		_, err := w.Write(f.Bytes)
+		if err != nil {
+			log.Printf("Error writing file '%s' (%s)\n", f.Filename, err)
+		}
+	}
 }
 
 func loginHandler(db *sql.DB) http.HandlerFunc {
@@ -1257,18 +1377,20 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+// GET /api/entries
 // GET /api/entries?username=rob
+// GET /api/entries?limit=10
+// GET /api/entries?limit=10&offset=20
 func apientriesHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ee []*Entry
 		var err error
 
 		qusername := r.FormValue("username")
-		if qusername != "" {
-			ee, err = findEntriesByUsername(db, qusername)
-		} else {
-			ee, err = findEntries(db)
-		}
+		qlimit := atoi(r.FormValue("limit"))
+		qoffset := atoi(r.FormValue("offset"))
+
+		ee, err = findEntries(db, qusername, qlimit, qoffset)
 		if err != nil {
 			handleErr(w, err, "apientriesHandler")
 		}
@@ -1281,23 +1403,6 @@ func apientriesHandler(db *sql.DB) http.HandlerFunc {
 		P := makeFprintf(w)
 		P("%s\n", string(bs))
 	}
-}
-
-func findFileByFilename(db *sql.DB, filename string) *File {
-	s := `SELECT file_id, filename, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
-FROM file f
-LEFT OUTER JOIN user u ON u.user_id = f.user_id 
-WHERE filename = ?`
-	row := db.QueryRow(s, filename)
-	var f File
-	err := row.Scan(&f.Fileid, &f.Filename, &f.Bytes, &f.Createdt, &f.Userid, &f.Username)
-	if err == sql.ErrNoRows {
-		return nil
-	}
-	if err != nil {
-		return nil
-	}
-	return &f
 }
 
 // If another file has the same filename, add a (n) to make unique.
@@ -1334,7 +1439,6 @@ func createFile(db *sql.DB, f *File) (int64, error) {
 	return fileid, nil
 }
 
-//$$ todo handle duplicate filenames
 func apiuploadfilesHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
@@ -1371,7 +1475,27 @@ func apiuploadfilesHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func apisearchfilesHandler(db *sql.DB) http.HandlerFunc {
+func apifilesHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var ff []*File
+		var err error
+
+		qusername := r.FormValue("username")
+		qfilename := r.FormValue("filename")
+		qlimit := atoi(r.FormValue("limit"))
+		qoffset := atoi(r.FormValue("offset"))
+
+		ff, err = findFiles(db, qusername, qfilename, qlimit, qoffset)
+		if err != nil {
+			handleErr(w, err, "apifilesHandler")
+		}
+
+		bs, err := json.MarshalIndent(ff, "", "\t")
+		if err != nil {
+			handleErr(w, err, "apifilesHandler")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		P := makeFprintf(w)
+		P("%s\n", string(bs))
 	}
 }
