@@ -593,7 +593,7 @@ LIMIT ? OFFSET ?`, swhere)
 	if err != nil {
 		return nil, err
 	}
-	var ee []*Entry
+	ee := []*Entry{}
 	for rows.Next() {
 		var e Entry
 		rows.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid, &e.Username)
@@ -662,7 +662,7 @@ LIMIT ? OFFSET ?`, swhere)
 	if err != nil {
 		return nil, err
 	}
-	var ff []*File
+	ff := []*File{}
 	for rows.Next() {
 		var f File
 		rows.Scan(&f.Fileid, &f.Filename, &f.Createdt, &f.Userid, &f.Username)

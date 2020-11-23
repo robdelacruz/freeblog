@@ -9,16 +9,15 @@
         <label class="block font-bold uppercase text-xs" for="files">Select</label>
         <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="files" name="files" type="file" multiple bind:files={files}>
     </div>
-    <div class="flex flex-row flex-wrap mb-2 justify-start">
 {#if files != null}
+    <div class="flex flex-row flex-wrap mb-2 justify-start">
     {#each files as previewfile (previewfile.name)}
         <div class="flex flex-col items-center border px-1 pt-1">
-            <img class="w-20 h-20" alt="{previewfile.name}" use:setimgsrc={previewfile}>
-            <p class="text-xs">{previewfile.name}</p>
+            <img class="w-20 h-20" alt="{previewfile.name}" title="{previewfile.name}" use:setimgsrc={previewfile}>
         </div>
     {/each}
-{/if}
     </div>
+{/if}
 {#if ui.status != ""}
     <div class="mb-2">
         <p class="uppercase italic text-xs">{ui.status}</p>
