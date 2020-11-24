@@ -152,7 +152,7 @@ func createTables(newfile string) {
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
 		"CREATE TABLE entry (entry_id INTEGER PRIMARY KEY NOT NULL, title TEXT, body TEXT, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
-		"CREATE TABLE file (file_id INTEGER PRIMARY KEY NOT NULL, filename TEXT, bytes BLOB, createdt TEXT NOT NULL, user_id INTEGER NOT NULL));",
+		"CREATE TABLE file (file_id INTEGER PRIMARY KEY NOT NULL, filename TEXT, bytes BLOB, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
 	}
 
 	tx, err := db.Begin()
