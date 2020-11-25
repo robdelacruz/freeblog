@@ -2,7 +2,7 @@
     <div class="flex flex-row justify-between">
         <h1 class="font-bold mb-1 text-base">Upload Images</h1>
         <div class="flex flex-row justify-start">
-            <a class="action self-center rounded text-xs px-1 py-0 mr-2" href="#a">Close</a>
+            <a class="action self-center rounded text-xs px-1 py-0" href="#a">Close</a>
         </div>
     </div>
     <div class="mb-2">

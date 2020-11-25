@@ -1,5 +1,10 @@
 <div class="panel py-2 px-4 mb-2 mr-2">
-    <h1 class="font-bold mb-1 text-base">Entries</h1>
+    <div class="flex flex-row justify-between">
+        <h1 class="font-bold mb-1 text-base">Entries</h1>
+        <div class="flex flex-row justify-start">
+            <a class="action self-center rounded text-xs px-0 py-0" href="#a">Add Entry</a>
+        </div>
+    </div>
 {#each ui.entries as entry}
     <div class="flex flex-row py-1">
         <div class="flex-grow">

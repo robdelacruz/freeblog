@@ -711,19 +711,11 @@ func printHeading(P PrintFunc, u *User) {
 	P("    <div>\n")
 	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/\">FreeBlog</a></h1>\n")
 	P("        <a href=\"about.html\" class=\"self-end mr-2\">About</a>\n")
-	if u != nil {
-		P("        <a href=\"/addentry\" class=\"pill self-center rounded px-2 py-1 mr-1\">Add Entry</a>\n")
-	}
 	P("    </div>\n")
 	P("    <div>\n")
 	if u != nil {
 		P("        <div class=\"relative inline mr-2\">\n")
-		P("            <a class=\"mr-1\" href=\"/profile\">%s</a>\n", escape(u.Username))
-		P("            <div class=\"hidden popmenu absolute top-auto right-0 py-1 w-20 border border-gray-500 shadow-xs w-40\">\n")
-		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1 border-b\" role=\"menuitem\">Change Password</a>\n")
-		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1 border-b\" role=\"menuitem\">Delete Account</a>\n")
-		P("                <a href=\"#a\" class=\"block leading-none px-2 py-1 border-b\" role=\"menuitem\">Reset LocalStorage</a>\n")
-		P("            </div>\n")
+		P("            <a class=\"mr-1\" href=\"/dashboard\">%s</a>\n", escape(u.Username))
 		P("        </div>\n")
 		P("        <a href=\"/logout\" class=\"inline self-end mr-1\">Logout</a>\n")
 	} else {
@@ -855,12 +847,6 @@ func indexHandler(db *sql.DB) http.HandlerFunc {
 			P("    </p>\n")
 			P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
 			P("</div>\n")
-
-			/*
-				if u.Userid == e.Userid {
-					P("        <a class=\"px-2 py-1 rounded mx-1 pill text-xs\" href=\"/editentry?id=%d\">Edit</a>\n", e.Entryid)
-				}
-			*/
 		}
 
 		printContainerClose(P)
@@ -889,21 +875,18 @@ func entryHandler(db *sql.DB) http.HandlerFunc {
 		printContainerOpen(P)
 		printHeading(P, u)
 
-		printEntry(P, db, e, u)
+		printEntry(P, db, e)
 
 		printContainerClose(P)
 		printHtmlClose(P)
 	}
 }
-func printEntry(P PrintFunc, db *sql.DB, e *Entry, u *User) {
+func printEntry(P PrintFunc, db *sql.DB, e *Entry) {
 	P("<h1 class=\"font-bold text-2xl mb-2\">%s</h1>\n", escape(e.Title))
 	if e.Username != "" {
 		P("<p class=\"mb-4 text-sm\">Posted on \n")
 		P("    <span class=\"italic\">%s</span> by \n", formatdate(e.Createdt))
 		P("    <a href=\"#\" class=\"action\">%s</a>\n", e.Username)
-		if u != nil && e.Userid == u.Userid {
-			P("    <a href=\"/editentry?id=%d\" class=\"pill rounded px-2 py-1 mx-1\">Edit</a>\n", e.Entryid)
-		}
 		P("</p>\n")
 	} else {
 		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
