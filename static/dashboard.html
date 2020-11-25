@@ -16,7 +16,6 @@
         <div>
             <h1 class="inline self-end ml-1 mr-2 font-bold"><a href="/">FreeBlog</a></h1>
             <a href="about.html" class="self-end mr-2">About</a>
-            <a href="#a" class="hidden pill self-center rounded px-2 py-1 mr-1">Add Entry</a>
         </div>
         <div>
             <div class="relative inline mr-2">
@@ -30,33 +29,46 @@
 
     <div class="flex flex-row">
         <h1 class="flex-grow font-bold text-xl my-2 mr-2">Dashboard</h1>
-        <a href="#" class="action text-sm self-center rounded px-0 py-0 mr-2">link 1</a>
-        <a href="#" class="action text-sm self-center rounded px-0 py-0">link 2</a>
+        <div class="self-center">
+            <a href="#" class="action text-sm self-center rounded px-0 py-0 mr-2">link 1</a>
+            <a href="#" class="action text-sm self-center rounded px-0 py-0">link 2</a>
+        </div>
     </div>
     <div class="flex flex-row flex-wrap justify-start">
 
         <div class="flex-grow panel py-2 px-4 mb-2 mr-2" style="flex-basis: 640px;">
-            <h1 class="font-bold mb-1 text-base">Entries</h1>
+            <div class="flex flex-row justify-between">
+                <h1 class="font-bold mb-1 text-base">Entries</h1>
+                <div>
+                    <a class="action self-center rounded text-xs px-0 py-0" href="#a">Add Entry</a>
+                </div>
+            </div>
             <div class="flex flex-row py-1">
                 <div class="flex-grow">
                     <a class="action text-sm text-gray-900" href="/entry?id=1">Lorem Ipsum</a>
                 </div>
-                <a class="action text-xs text-gray-700 mr-4" href="#">edit</a>
-                <a class="action text-xs text-gray-700" href="#">delete</a>
+                <div>
+                    <a class="action text-xs text-gray-700 mr-2" href="#">edit</a>
+                    <a class="action text-xs text-gray-700" href="#">delete</a>
+                </div>
             </div>
             <div class="flex flex-row py-1">
                 <p class="flex-grow">
                     <a class="action text-sm text-gray-900" href="/entry?id=1">Now is the time for all good men Now is the time for all good men</a>
                 </p>
-                <a class="action text-xs text-gray-700 mr-4" href="#">edit</a>
-                <a class="action text-xs text-gray-700" href="#">delete</a>
+                <div>
+                    <a class="action text-xs text-gray-700 mr-2" href="#">edit</a>
+                    <a class="action text-xs text-gray-700" href="#">delete</a>
+                </div>
             </div>
             <div class="flex flex-row py-1">
                 <p class="flex-grow">
                     <a class="action text-sm text-gray-900" href="/entry?id=1">Now is the time for all good men Now is the time for all good men</a>
                 </p>
-                <a class="action text-xs text-gray-700 mr-4" href="#">edit</a>
-                <a class="action text-xs text-gray-700" href="#">delete</a>
+                <div>
+                    <a class="action text-xs text-gray-700 mr-2" href="#">edit</a>
+                    <a class="action text-xs text-gray-700" href="#">delete</a>
+                </div>
             </div>
         </div>
 
@@ -72,8 +84,8 @@
             <form class="flex flex-col panel py-2 px-4 text-sm mb-2">
                 <div class="flex flex-row justify-between">
                     <h1 class="font-bold mb-1 text-base">Upload Images</h1>
-                    <div class="flex flex-row justify-start">
-                        <a class="action self-center rounded text-xs px-1 py-0 mr-2" href="#a">Close</a>
+                    <div class="self-start">
+                        <a class="action rounded text-xs px-1 py-0" href="#a">Link 1</a>
                     </div>
                 </div>
                 <div class="mb-2">
@@ -116,8 +128,8 @@
             <form class="flex flex-col panel py-2 px-4 text-sm">
                 <div class="flex flex-row justify-between">
                     <h1 class="font-bold mb-1 text-base">Search Images</h1>
-                    <div class="flex flex-row justify-start">
-                        <a class="action self-center rounded text-xs px-1 py-0 mr-2" href="#a">Close</a>
+                    <div class="self-start">
+                        <a class="action rounded text-xs px-1 py-0" href="#a">Link 1</a>
                     </div>
                 </div>
                 <div class="mb-2">

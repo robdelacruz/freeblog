@@ -1,8 +1,8 @@
 <form class="flex flex-col panel py-2 px-4 text-sm" on:submit={onsubmit}>
     <div class="flex flex-row justify-between">
         <h1 class="font-bold mb-1 text-base">Search Images</h1>
-        <div class="flex flex-row justify-start">
-            <a class="action self-center rounded text-xs px-1 py-0" href="#a">Close</a>
+        <div class="self-start">
+            <a class="action rounded text-xs px-1 py-0" href="#a">Link 1</a>
         </div>
     </div>
     <div class="mb-2">

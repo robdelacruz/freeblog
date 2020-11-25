@@ -1,7 +1,7 @@
 <div class="panel py-2 px-4 mb-2 mr-2">
     <div class="flex flex-row justify-between">
         <h1 class="font-bold mb-1 text-base">Entries</h1>
-        <div class="flex flex-row justify-start">
+        <div>
             <a class="action self-center rounded text-xs px-0 py-0" href="#a">Add Entry</a>
         </div>
     </div>
@@ -10,8 +10,10 @@
         <div class="flex-grow">
             <a class="action text-sm text-gray-900" href="/entry?id={entry.entryid}">{entry.title}</a>
         </div>
-        <a class="action text-xs text-gray-700 mr-4" href="#a">edit</a>
-        <a class="action text-xs text-gray-700" href="#a">delete</a>
+        <div>
+            <a class="action text-xs text-gray-700 mr-2" href="#a">edit</a>
+            <a class="action text-xs text-gray-700" href="#a">delete</a>
+        </div>
     </div>
 {/each}
 </div>

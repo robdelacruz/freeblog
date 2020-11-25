@@ -1,7 +1,9 @@
 <div class="flex flex-row">
     <h1 class="flex-grow font-bold text-xl my-2 mr-2">Dashboard</h1>
-    <a href="#a" class="action text-sm self-center rounded px-0 py-0 mr-2">link 1</a>
-    <a href="#a" class="action text-sm self-center rounded px-0 py-0">link 2</a>
+    <div class="self-center">
+        <a href="#a" class="action text-sm self-center rounded px-0 py-0 mr-2">link 1</a>
+        <a href="#a" class="action text-sm self-center rounded px-0 py-0">link 2</a>
+    </div>
 </div>
 <div class="flex flex-row flex-wrap justify-start">
     <div class="flex-grow" style="flex-basis: 640px;">
