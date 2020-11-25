@@ -6,8 +6,16 @@
     </div>
 </div>
 <div class="flex flex-row flex-wrap justify-start">
-    <div class="flex-grow" style="flex-basis: 640px;">
-        <Entries username={session.username} />
+    <div class="flex-grow mr-2" style="flex-basis: 640px;">
+{#if ui.mode == ""}
+        <Entries username={session.username} on:mode={entries_mode} />
+{:else if ui.mode == "add"}
+add
+{:else if ui.mode == "edit"}
+        <EditEntry entryid={ui.entryid} />
+{:else if ui.mode == "del"}
+del
+{/if}
     </div>
     <div class="" style="flex-basis: 320px;">
         <div class="panel py-2 px-4 text-sm mb-2">
@@ -29,9 +37,23 @@ import {currentSession} from "./helpers.js";
 import Entries from "./Entries.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
+import EditEntry from "./EditEntry.svelte";
 
-let ui = {};
 let session = currentSession();
+let ui = {};
+ui.mode = "";
+ui.entryid = 0;
+
+function entries_mode(e) {
+    ui.mode = e.detail.mode;
+    ui.entryid = e.detail.entryid;
+    status();
+}
+
+function status() {
+    console.log(`mode = ${ui.mode}`);
+    console.log(`entryid = ${ui.entryid}`);
+}
 
 </script>
 

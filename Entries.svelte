@@ -1,8 +1,8 @@
-<div class="panel py-2 px-4 mb-2 mr-2">
+<div class="panel py-2 px-4 mb-2">
     <div class="flex flex-row justify-between">
         <h1 class="font-bold mb-1 text-base">Entries</h1>
         <div>
-            <a class="action self-center rounded text-xs px-0 py-0" href="#a">Add Entry</a>
+            <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click|preventDefault='{e => switchmode(e, "add", 0)}'>Add Entry</a>
         </div>
     </div>
 {#each ui.entries as entry}
@@ -11,14 +11,16 @@
             <a class="action text-sm text-gray-900" href="/entry?id={entry.entryid}">{entry.title}</a>
         </div>
         <div>
-            <a class="action text-xs text-gray-700 mr-2" href="#a">edit</a>
-            <a class="action text-xs text-gray-700" href="#a">delete</a>
+            <a class="action text-xs text-gray-700 mr-2" href="#a" on:click|preventDefault='{e => switchmode(e, "edit", entry.entryid)}'>edit</a>
+            <a class="action text-xs text-gray-700" href="#a" on:click|preventDefault='{e => switchmode(e, "del", entry.entryid)}'>delete</a>
         </div>
     </div>
 {/each}
 </div>
 
 <script>
+import {onMount, createEventDispatcher} from "svelte";
+let dispatch = createEventDispatcher();
 export let username = "";
 
 let svcurl = "/api";
@@ -52,6 +54,13 @@ async function findentries(username) {
     } catch (err) {
         return [[], err];
     }
+}
+
+function switchmode(e, mode, entryid) {
+    dispatch("mode", {
+        mode: mode,
+        entryid: entryid,
+    });
 }
 
 </script>
