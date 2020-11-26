@@ -4,7 +4,7 @@
 # 'make' to build css and js into static/
 # 'make serve' to start dev webserver
 
-JSFILES = index.js helpers.js Dashboard.svelte Entries.svelte UploadImages.svelte SearchImages.svelte
+JSFILES = index.js helpers.js Dashboard.svelte Entries.svelte EditEntry.svelte UploadImages.svelte SearchImages.svelte
 
 all: freeblog static/style.css static/bundle.js
 

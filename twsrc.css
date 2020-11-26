@@ -26,6 +26,10 @@
 .popmenu {@apply bg-gray-200 text-gray-800;}
 .popmenu a:hover {@apply bg-gray-400 text-gray-900;}
 
+.main-col {flex-basis: 640px;}
+.side-col {flex-basis: 320px;}
+.min-h-85 {min-height: 85vh;}
+
 .action {@apply border-b;}
 .light .action {@apply text-gray-800;}
 .dark .action {@apply text-gray-400 border-gray-700;}

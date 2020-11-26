@@ -6,7 +6,7 @@
     </div>
 </div>
 <div class="flex flex-row flex-wrap justify-start">
-    <div class="flex-grow mr-2" style="flex-basis: 640px;">
+    <div class="flex-grow mr-2 main-col min-h-85">
 {#if ui.mode == ""}
         <Entries username={session.username} on:mode={entries_mode} />
 {:else if ui.mode == "add"}
@@ -17,7 +17,7 @@ add
 del
 {/if}
     </div>
-    <div class="" style="flex-basis: 320px;">
+    <div class="side-col">
         <div class="panel py-2 px-4 text-sm mb-2">
             <h1 class="font-bold mb-1 text-base">{session.username}</h1>
             <div class="flex flex-col">

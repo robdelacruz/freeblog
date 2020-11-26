@@ -1,4 +1,4 @@
-<div class="panel py-2 px-4 mb-2">
+<div class="panel py-2 px-4 mb-2 h-full">
     <div class="flex flex-row justify-between">
         <h1 class="font-bold mb-1 text-base">Entries</h1>
         <div>

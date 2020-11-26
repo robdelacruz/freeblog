@@ -1,4 +1,4 @@
-<form class="flex-grow flex flex-col panel mx-auto py-2 px-8 text-sm">
+<form class="flex-grow flex flex-col panel mx-auto py-2 px-8 text-sm h-full">
     <div class="flex flex-row justify-between">
         <h1 class="font-bold mb-1 text-base">Edit Entry</h1>
         <div>
@@ -29,11 +29,60 @@
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
 import {currentSession} from "./helpers.js";
-
 export let entryid;
+
+let svcurl = "/api";
 let session = currentSession();
+
 let ui = {};
 ui.entryid = entryid;
 ui.mode = "";
+
+// Returns [entry, err]
+async function findentry(entryid) {
+    let sreq = `${svcurl}/entry?id=${entryid}`;
+    try {
+        let res = await fetch(sreq, {method: "GET"});
+        if (!res.ok) {
+            if (res.status == 404) {
+                return [null, null];
+            }
+            let s = await res.text();
+            return [null, new Error(s)];
+        }
+        let entry = await res.json();
+        return [entry, null];
+    } catch(err) {
+        return [null, err];
+    }
+}
+
+// Returns [savedentry, err]
+async function submitentry(e) {
+    let sreq = `${svcurl}/entry/`;
+    let method = "";
+    if (e.entryid == 0) {
+        method = "POST";
+    } else {
+        method = "PUT";
+    }
+
+    try {
+        let res = await fetch(sreq, {
+            method: method,
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(entry),
+        });
+        if (!res.ok) {
+            let s = await res.text();
+            console.error(s);
+            return [null, new Error(s)];
+        }
+        let savedentry = await res.json();
+        return [savedentry, null];
+    } catch(err) {
+        return [null, err];
+    }
+}
 </script>
 
