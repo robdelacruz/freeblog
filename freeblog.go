@@ -405,7 +405,7 @@ func findUserById(db *sql.DB, userid int64) *User {
 	}
 	return &u
 }
-func findUser(db *sql.DB, username string) *User {
+func findUserByUsername(db *sql.DB, username string) *User {
 	s := "SELECT user_id, username, password FROM user WHERE username = ?"
 	row := db.QueryRow(s, username)
 	var u User
@@ -419,7 +419,7 @@ func findUser(db *sql.DB, username string) *User {
 	return &u
 }
 func isUsernameExists(db *sql.DB, username string) bool {
-	if findUser(db, username) == nil {
+	if findUserByUsername(db, username) == nil {
 		return false
 	}
 	return true
@@ -433,10 +433,10 @@ func validateTok(tok string, u *User) bool {
 	return validateHash(tok, fmt.Sprintf("%s_%s", u.Username, u.HashedPwd))
 }
 
-func setLoginCookie(w http.ResponseWriter, username, tok string) {
+func setLoginCookie(w http.ResponseWriter, u *User, tok string) {
 	c := http.Cookie{
-		Name:  "usernametok",
-		Value: fmt.Sprintf("%s|%s", username, tok),
+		Name:  "useridtok",
+		Value: fmt.Sprintf("%d|%s", u.Userid, tok),
 		Path:  "/",
 		// Expires: time.Now().Add(24 * time.Hour),
 	}
@@ -444,35 +444,35 @@ func setLoginCookie(w http.ResponseWriter, username, tok string) {
 }
 func delLoginCookie(w http.ResponseWriter) {
 	c := http.Cookie{
-		Name:   "usernametok",
+		Name:   "useridtok",
 		Value:  "",
 		Path:   "/",
 		MaxAge: 0,
 	}
 	http.SetCookie(w, &c)
 }
-func readLoginCookie(r *http.Request) (string, string) {
-	c, err := r.Cookie("usernametok")
+func readLoginCookie(r *http.Request) (int64, string) {
+	c, err := r.Cookie("useridtok")
 	if err != nil {
-		return "", ""
+		return 0, ""
 	}
 
-	var username, tok string
+	var tok string
 	ss := strings.Split(c.Value, "|")
-	username = ss[0]
+	userid := idtoi(ss[0])
 	if len(ss) > 1 {
 		tok = ss[1]
 	}
-	return username, tok
+	return userid, tok
 }
 
 // Reads and validates login cookie. If invalid username/token, return no user.
 func validateLoginCookie(db *sql.DB, r *http.Request) (*User, string) {
-	username, tok := readLoginCookie(r)
-	if username == "" {
+	userid, tok := readLoginCookie(r)
+	if userid == 0 {
 		return nil, ""
 	}
-	u := findUser(db, username)
+	u := findUserById(db, userid)
 	if u == nil {
 		return nil, ""
 	}
@@ -483,27 +483,45 @@ func validateLoginCookie(db *sql.DB, r *http.Request) (*User, string) {
 	return u, tok
 }
 
+// Pass either userid or username (userid takes precedence) and token to validate.
+func validateUserTok(db *sql.DB, userid int64, username string, tok string) (*User, bool) {
+	var u *User
+	if userid != 0 {
+		u = findUserById(db, userid)
+	} else {
+		u = findUserByUsername(db, username)
+	}
+	if u == nil {
+		return nil, false
+	}
+	if !validateTok(tok, u) {
+		log.Printf("Token not validated for '%s' ", u.Username)
+		return u, false
+	}
+	return u, true
+}
+
 var ErrLoginIncorrect = errors.New("Incorrect username or password")
 
-func login(db *sql.DB, username, pwd string) (string, error) {
+func login(db *sql.DB, username, pwd string) (*User, string, error) {
 	var u User
 	s := "SELECT user_id, username, password FROM user WHERE username = ?"
 	row := db.QueryRow(s, username)
 	err := row.Scan(&u.Userid, &u.Username, &u.HashedPwd)
 	if err == sql.ErrNoRows {
-		return "", ErrLoginIncorrect
+		return nil, "", ErrLoginIncorrect
 	}
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	if !validateHash(u.HashedPwd, pwd) {
-		return "", ErrLoginIncorrect
+		return nil, "", ErrLoginIncorrect
 	}
 
 	// Return session token, this will be used to authenticate username
 	// on every request by calling validateTok()
 	tok := genTok(&u)
-	return tok, nil
+	return &u, tok, nil
 }
 
 func signup(db *sql.DB, username, pwd string) error {
@@ -522,7 +540,7 @@ func signup(db *sql.DB, username, pwd string) error {
 
 func edituser(db *sql.DB, username, pwd string, newpwd string) error {
 	// Validate existing password
-	_, err := login(db, username, pwd)
+	_, _, err := login(db, username, pwd)
 	if err != nil {
 		return err
 	}
@@ -539,7 +557,7 @@ func edituser(db *sql.DB, username, pwd string, newpwd string) error {
 
 func deluser(db *sql.DB, username, pwd string) error {
 	// Validate existing password
-	_, err := login(db, username, pwd)
+	_, _, err := login(db, username, pwd)
 	if err != nil {
 		return err
 	}
@@ -953,12 +971,12 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 			f.username = r.FormValue("username")
 			f.pwd = r.FormValue("pwd")
 			for {
-				tok, err := login(db, f.username, f.pwd)
+				u, tok, err := login(db, f.username, f.pwd)
 				if err != nil {
 					errmsg = fmt.Sprintf("%s", err)
 					break
 				}
-				setLoginCookie(w, f.username, tok)
+				setLoginCookie(w, u, tok)
 
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
@@ -1009,12 +1027,12 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 					errmsg = fmt.Sprintf("%s", err)
 					break
 				}
-				tok, err := login(db, f.username, f.pwd)
+				u, tok, err := login(db, f.username, f.pwd)
 				if err != nil {
 					errmsg = fmt.Sprintf("%s", err)
 					break
 				}
-				setLoginCookie(w, f.username, tok)
+				setLoginCookie(w, u, tok)
 
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
@@ -1066,12 +1084,12 @@ func passwordHandler(db *sql.DB) http.HandlerFunc {
 					errmsg = fmt.Sprintf("%s", err)
 					break
 				}
-				tok, err := login(db, u.Username, f.newpwd)
+				u, tok, err := login(db, u.Username, f.newpwd)
 				if err != nil {
 					errmsg = fmt.Sprintf("%s", err)
 					break
 				}
-				setLoginCookie(w, u.Username, tok)
+				setLoginCookie(w, u, tok)
 
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return

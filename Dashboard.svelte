@@ -20,7 +20,7 @@ del
     </div>
     <div class="side-col">
         <div class="panel py-2 px-4 text-sm mb-2">
-            <h1 class="font-bold mb-1 text-base">{session.username}</h1>
+            <h1 class="font-bold mb-1 text-base">{session.userid}</h1>
             <div class="flex flex-col">
                 <a href="/password" class="">Change Password</a>
                 <a href="#a" class="">Delete Account</a>
