@@ -10,9 +10,10 @@
 {#if ui.mode == ""}
         <Entries username={session.username} on:mode={entries_mode} />
 {:else if ui.mode == "add"}
+    <EditEntry on:submit={entry_submit} on:cancel={entry_cancel}/>
 add
 {:else if ui.mode == "edit"}
-        <EditEntry entryid={ui.entryid} />
+        <EditEntry entryid={ui.entryid} on:submit={entry_submit} on:cancel={entry_cancel}/>
 {:else if ui.mode == "del"}
 del
 {/if}
@@ -47,12 +48,12 @@ ui.entryid = 0;
 function entries_mode(e) {
     ui.mode = e.detail.mode;
     ui.entryid = e.detail.entryid;
-    status();
 }
-
-function status() {
-    console.log(`mode = ${ui.mode}`);
-    console.log(`entryid = ${ui.entryid}`);
+function entry_submit(e) {
+    ui.mode = "";
+}
+function entry_cancel(e) {
+    ui.mode = "";
 }
 
 </script>
