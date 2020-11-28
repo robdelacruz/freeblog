@@ -1,21 +1,31 @@
-export function currentSession() {
+function readCookie(name) {
     let cookies = document.cookie.split(";");
     for (let i=0; i < cookies.length; i++) {
         let cookie = cookies[i].trim();
         let [k,v] = cookie.split("=");
-        if (k != "useridtok") {
-            continue;
+        if (k == name) {
+            if (v == undefined) {
+                v = "";
+            }
+            return v;
         }
-        if (v == undefined) {
-            v = "";
-        }
-        let [suserid, tok] = v.split("|");
-        let userid = parseInt(suserid, 10);
-        if (tok == undefined) {
-            tok = "";
-        }
-        return {userid: userid, tok: tok};
     }
-    return {userid: 0, tok: ""};
+    return "";
+}
+
+export function currentSession() {
+    let suserid = readCookie("userid");
+    if (suserid == "") {
+        return {userid: 0, username: "", sig: ""};
+    }
+    let username = readCookie("username");
+    let sig = readCookie("sig");
+
+    let userid = parseInt(suserid, 10);
+    return {
+        userid: userid,
+        username: username,
+        sig: sig,
+    };
 }
 
