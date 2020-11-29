@@ -1,6 +1,6 @@
-{#if ui.mode == "loaderr"}
+{#if ui.loadstatus != ""}
     <div class="mb-2">
-        <p class="uppercase italic text-xs">Server error loading entry</p>
+        <p class="uppercase italic text-xs">{ui.loadstatus}</p>
     </div>
     <div class="mb-2">
         <a class="action self-center rounded text-xs px-0 py-0 mr-2" href="#a" on:click|preventDefault="{e => init(entryid)}">Retry</a>
@@ -30,9 +30,9 @@
             <label class="block font-bold uppercase text-xs" for="tags">tags</label>
             <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="tags" name="tags" type="text" value="">
         </div>
-    {#if ui.status != ""}
+    {#if ui.submitstatus != ""}
         <div class="mb-2">
-            <p class="uppercase italic text-xs">{ui.status}</p>
+            <p class="uppercase italic text-xs">{ui.submitstatus}</p>
         </div>
     {/if}
         <div class="flex flex-row justify-center mb-2 justify-center">
@@ -59,18 +59,17 @@ let blankentry = {
 
 let ui = {};
 
-ui.mode = "";
-ui.status = "";
+ui.loadstatus = "";
+ui.submitstatus = "";
 ui.entry = blankentry;
 
 init(entryid);
 
 async function init(qentryid) {
-    ui.mode = "";
-    ui.status = "loading";
+    ui.loadstatus = "loading entry...";
 
     if (qentryid == 0) {
-        ui.status = "";
+        ui.loadstatus = "";
         ui.entry = blankentry;
         return;
     }
@@ -78,27 +77,26 @@ async function init(qentryid) {
     let [entry, err] = await findentry(qentryid);
     if (err !=  null) {
         console.error(err);
-        ui.mode = "loaderr";
-        ui.status = "server error loading entry";
+        ui.loadstatus = "Server error loading entry";
         ui.entry = blankentry;
         return;
     }
 
-    ui.status = "";
+    ui.loadstatus = "";
     ui.entry = entry;
 }
 
 async function onsubmit(e) {
-    ui.status = "processing";
+    ui.submitstatus = "processing";
 
     let [savedentry, err] = await submitentry(ui.entry);
     if (err != null) {
         console.error(err);
-        ui.status = "server error submitting entry";
+        ui.submitstatus = "server error submitting entry";
         return;
     }
 
-    ui.status = "";
+    ui.submitstatus = "";
     ui.entry = savedentry;
     dispatch("submit", savedentry);
 }
