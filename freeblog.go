@@ -645,6 +645,14 @@ LIMIT ? OFFSET ?`, swhere)
 	}
 	return ee, nil
 }
+func delEntry(db *sql.DB, entryid int64) error {
+	s := `DELETE FROM entry WHERE entry_id = ?`
+	_, err := sqlexec(db, s, entryid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func findFile(db *sql.DB, fileid int64) *File {
 	s := `SELECT file_id, filename, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
@@ -1333,16 +1341,19 @@ func dashboardHandler(db *sql.DB) http.HandlerFunc {
 }
 
 // GET /api/entry?id=123
+// DELETE /api/entry?id=123
 // POST /api/entry {...}
 // PUT /api/entry {...}
 func apientryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			qid := idtoi(r.FormValue("id"))
+			qfmt := r.FormValue("fmt")
 			if qid == 0 {
 				http.Error(w, "Not found.", 404)
 				return
 			}
+
 			e := findEntry(db, qid)
 			if e == nil {
 				http.Error(w, "Not found.", 404)
@@ -1351,6 +1362,10 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 
 			w.Header().Set("Content-Type", "application/json")
 			P := makeFprintf(w)
+			if qfmt == "html" {
+				printViewEntry(P, db, e)
+				return
+			}
 			P("%s\n", e)
 			return
 		} else if r.Method == "POST" {
@@ -1413,10 +1428,52 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 			P := makeFprintf(w)
 			P("%s\n", &e)
 			return
+		} else if r.Method == "DELETE" {
+			u := validateApiUser(db, r)
+			if u == nil {
+				http.Error(w, "Invalid user", 401)
+				return
+			}
+			qid := idtoi(r.FormValue("id"))
+			if qid == 0 {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+
+			e := findEntry(db, qid)
+			if e == nil {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+			if e.Userid != u.Userid {
+				http.Error(w, "Invalid user", 401)
+				return
+			}
+
+			err := delEntry(db, qid)
+			if err != nil {
+				handleErr(w, err, "DEL apientryHandler")
+				return
+			}
+			return
 		}
 
-		http.Error(w, "Use GET/POST/PUT", 401)
+		http.Error(w, "Use GET/POST/PUT/DELETE", 401)
 	}
+}
+
+func printViewEntry(P PrintFunc, db *sql.DB, e *Entry) {
+	P("<h1 class=\"text-2xl mb-2\">%s</h1>\n", escape(e.Title))
+	if e.Username != "" {
+		P("<p class=\"mb-4 text-sm\">Posted on \n")
+		P("    <span class=\"italic\">%s</span> by %s\n", formatdate(e.Createdt), e.Username)
+		P("</p>\n")
+	} else {
+		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
+	}
+	P("<div class=\"content\">\n")
+	P("%s\n", parseMarkdown(e.Body))
+	P("</div>\n")
 }
 
 // GET /api/entries

@@ -9,13 +9,14 @@
     <div class="flex-grow mr-2 main-col min-h-85">
 {#if ui.mode == ""}
         <Entries username={session.username} on:mode={entries_mode} />
+{:else if ui.mode == "view"}
+    <ViewEntry entryid={ui.entryid} on:cancel={entry_cancel}/>
 {:else if ui.mode == "add"}
     <EditEntry on:submit={entry_submit} on:cancel={entry_cancel}/>
-add
 {:else if ui.mode == "edit"}
         <EditEntry entryid={ui.entryid} on:submit={entry_submit} on:cancel={entry_cancel}/>
 {:else if ui.mode == "del"}
-del
+        <ViewEntry entryid={ui.entryid} optdel on:del={entry_submit} on:cancel={entry_cancel}/>
 {/if}
     </div>
     <div class="side-col">
@@ -39,6 +40,7 @@ import Entries from "./Entries.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
 import EditEntry from "./EditEntry.svelte";
+import ViewEntry from "./ViewEntry.svelte";
 
 let session = currentSession();
 let ui = {};

@@ -7,7 +7,7 @@
         <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click|preventDefault={oncancel}>Cancel</a>
     </div>
 {:else}
-<form class="flex-grow flex flex-col panel mx-auto py-2 px-8 text-sm h-full" on:submit|preventDefault={onsubmit}>
+    <form class="flex-grow flex flex-col panel mx-auto py-2 px-8 text-sm h-full" on:submit|preventDefault={onsubmit}>
         <div class="flex flex-row justify-between">
     {#if ui.entry.entryid == 0}
             <h1 class="font-bold mb-1 text-base">New Entry</h1>
