@@ -21,6 +21,9 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
+import {currentSession} from "./helpers.js";
+let session = currentSession();
+
 export let username = "";
 
 let svcurl = "/api";
@@ -42,7 +45,10 @@ async function init(username) {
 
 // Returns []entries, error
 async function findentries(username) {
-    let sreq = `${svcurl}/entries?username=${username}`;
+    let sreq = `${svcurl}/entries`;
+    if (session.userid > 1) {
+        sreq = `${svcurl}/entries?username=${username}`;
+    }
     try {
         let res = await fetch(sreq, {method: "GET"});
         if (!res.ok) {

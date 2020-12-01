@@ -1414,8 +1414,8 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 				handleErr(w, err, "PUT apientryHandler")
 				return
 			}
-			if e.Userid != u.Userid {
-				http.Error(w, "Invalid user", 401)
+			if u.Userid != 1 && e.Userid != u.Userid {
+				http.Error(w, "Not authorized", 401)
 				return
 			}
 			err = editEntry(db, &e)
@@ -1445,8 +1445,8 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Not found.", 404)
 				return
 			}
-			if e.Userid != u.Userid {
-				http.Error(w, "Invalid user", 401)
+			if u.Userid != 1 && e.Userid != u.Userid {
+				http.Error(w, "Not authorized", 401)
 				return
 			}
 
