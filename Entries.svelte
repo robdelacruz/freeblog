@@ -8,7 +8,7 @@
 {#each ui.entries as entry}
     <div class="flex flex-row py-1">
         <div class="flex-grow">
-            <a class="action text-sm text-gray-900" href="/entry?id={entry.entryid}" on:click|preventDefault='{e => switchmode(e, "view", entry.entryid)}'>{entry.title}</a>
+            <a class="action text-sm text-gray-900" href="/entry?id={entry.entryid}" target="_blank">{entry.title}</a>
         </div>
         <div>
             <a class="action text-xs text-gray-700 mr-2" href="#a" on:click|preventDefault='{e => switchmode(e, "edit", entry.entryid)}'>edit</a>

@@ -9,14 +9,12 @@
     <div class="flex-grow mr-2 main-col min-h-85">
 {#if ui.mode == ""}
         <Entries username={session.username} on:mode={entries_mode} />
-{:else if ui.mode == "view"}
-    <ViewEntry entryid={ui.entryid} on:cancel={entry_cancel}/>
 {:else if ui.mode == "add"}
-    <EditEntry on:submit={entry_submit} on:cancel={entry_cancel}/>
+        <EditEntry on:submit={resetmode} on:cancel={resetmode}/>
 {:else if ui.mode == "edit"}
-        <EditEntry entryid={ui.entryid} on:submit={entry_submit} on:cancel={entry_cancel}/>
+        <EditEntry entryid={ui.entryid} on:submit={resetmode} on:cancel={resetmode}/>
 {:else if ui.mode == "del"}
-        <ViewEntry entryid={ui.entryid} optdel on:del={entry_submit} on:cancel={entry_cancel}/>
+        <DelEntry entryid={ui.entryid} on:submit={resetmode} on:cancel={resetmode}/>
 {/if}
     </div>
     <div class="side-col">
@@ -40,7 +38,7 @@ import Entries from "./Entries.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
 import EditEntry from "./EditEntry.svelte";
-import ViewEntry from "./ViewEntry.svelte";
+import DelEntry from "./DelEntry.svelte";
 
 let session = currentSession();
 let ui = {};
@@ -51,10 +49,7 @@ function entries_mode(e) {
     ui.mode = e.detail.mode;
     ui.entryid = e.detail.entryid;
 }
-function entry_submit(e) {
-    ui.mode = "";
-}
-function entry_cancel(e) {
+function resetmode() {
     ui.mode = "";
 }
 
