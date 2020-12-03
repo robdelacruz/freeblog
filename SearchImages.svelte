@@ -21,17 +21,14 @@
 {/if}
     <div class="flex flex-row flex-wrap mb-2 justify-start">
 {#each ui.files as f (f.fileid)}
-        <div class="flex flex-col items-center border px-1 pt-1">
-            <a href={f.url} target="_blank">
-                <img class="w-20 h-20" alt={f.filename} title={f.filename} src={f.url}>
-            </a>
-        </div>
+        <FileThumbnail filename={f.filename} url={f.url} />
 {/each}
     </div>
 </form>
 
 <script>
 import {currentSession} from "./helpers.js";
+import FileThumbnail from "./FileThumbnail.svelte";
 
 let svcurl = "/api";
 let session = currentSession();

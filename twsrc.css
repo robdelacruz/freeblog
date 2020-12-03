@@ -28,7 +28,7 @@
 
 .main-col {flex-basis: 640px;}
 .side-col {flex-basis: 320px;}
-.min-h-85 {min-height: 85vh;}
+.h-85vh {height: 85vh;}
 
 .action {@apply border-b;}
 .light .action {@apply text-gray-800;}

@@ -6,7 +6,7 @@
     </div>
 </div>
 <div class="flex flex-row flex-wrap justify-start">
-    <div class="flex-grow mr-2 main-col min-h-85">
+    <div class="flex-grow mr-2 main-col">
 {#if ui.mode == ""}
         <Entries username={session.username} on:mode={entries_mode} />
 {:else if ui.mode == "add"}
@@ -25,10 +25,8 @@
                 <a href="#a" class="">Delete Account</a>
             </div>
         </div>
-
-        <UploadImages />
         <SearchImages />
-
+        <UploadImages />
     </div>
 </div>
 
@@ -44,6 +42,16 @@ let session = currentSession();
 let ui = {};
 ui.mode = "";
 ui.entryid = 0;
+
+document.addEventListener("click", onglobalclick, false);
+function onglobalclick(e) {
+    // Send signal to close any open pop-up menus.
+    let cc = document.querySelectorAll(".haspopupmenu");
+    for (let i=0; i < cc.length; i++) {
+        let e = new Event("globalclick");
+        cc[i].dispatchEvent(e);
+    }
+}
 
 function entries_mode(e) {
     ui.mode = e.detail.mode;
