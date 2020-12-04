@@ -1,4 +1,4 @@
-<form class="flex flex-col panel py-2 px-4 text-sm mb-2" bind:this={frm} on:submit={onsubmit}>
+<form class="flex flex-col" bind:this={frm} on:submit={onsubmit}>
     <div class="flex flex-row justify-between">
         <h1 class="font-bold mb-1 text-base">Upload Images</h1>
         <div class="self-start">

@@ -18,15 +18,20 @@
 {/if}
     </div>
     <div class="side-col">
-        <div class="panel py-2 px-4 text-sm mb-2">
+        <div class="panel py-2 px-4 text-xs mb-2">
             <h1 class="font-bold mb-1 text-base">{session.username}</h1>
             <div class="flex flex-col">
-                <a href="/password" class="">Change Password</a>
+                <a href="#a" class="">Manage Files</a>
+                <a href="#a" class="">Change Password</a>
                 <a href="#a" class="">Delete Account</a>
             </div>
         </div>
-        <SearchImages />
-        <UploadImages />
+        <div class="panel py-2 px-4 text-sm mb-2">
+            <SearchImages />
+        </div>
+        <div class="panel py-2 px-4 text-sm mb-0">
+            <UploadImages />
+        </div>
     </div>
 </div>
 
