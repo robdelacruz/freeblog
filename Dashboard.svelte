@@ -36,7 +36,7 @@
 </div>
 
 <script>
-import {currentSession} from "./helpers.js";
+import {currentSession, initPopupHandlers} from "./helpers.js";
 import Entries from "./Entries.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
@@ -48,15 +48,7 @@ let ui = {};
 ui.mode = "";
 ui.entryid = 0;
 
-document.addEventListener("click", onglobalclick, false);
-function onglobalclick(e) {
-    // Send signal to close any open pop-up menus.
-    let cc = document.querySelectorAll(".haspopupmenu");
-    for (let i=0; i < cc.length; i++) {
-        let e = new Event("globalclick");
-        cc[i].dispatchEvent(e);
-    }
-}
+initPopupHandlers();
 
 function entries_mode(e) {
     ui.mode = e.detail.mode;

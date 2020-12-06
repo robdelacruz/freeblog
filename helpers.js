@@ -29,3 +29,15 @@ export function currentSession() {
     };
 }
 
+export function initPopupHandlers() {
+    function onglobalclick(e) {
+        // Send signal to close any open pop-up menus.
+        let mm = document.querySelectorAll(".popupmenu");
+        for (let i=0; i < mm.length; i++) {
+            let e = new Event("globalclick");
+            mm[i].dispatchEvent(e);
+        }
+    }
+    document.addEventListener("click", onglobalclick, false);
+}
+
