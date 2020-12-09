@@ -8,21 +8,27 @@
 <div class="flex flex-row flex-wrap justify-start">
     <div class="flex-grow mr-2 main-col">
         <div class="panel py-2 px-4 mb-2 h-full">
+        {#if ui.action == ""}
             <div class="flex flex-row justify-between mb-4 text-sm">
-                <Tablinks links="entries|Entries;images|Images;files|Files" bind:this={tablinks} />
+                <Tablinks links="entries|Entries;images|Images;files|Files" on:sel={tablinks_sel} />
+                <div>
+                {#if ui.tabsel == "entries"}
+                    <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click={onaddentry}>Add Entry</a>
+                {/if}
+                </div>
             </div>
+        {/if}
+
+        {#if ui.tabsel == "entries"}
+            {#if ui.action == ""}
+                <Entries username={session.username} on:action={entries_action} />
+            {:else if ui.action == "edit"}
+                <EditEntry entryid={ui.entryid} on:submit={clearaction} on:cancel={clearaction}/>
+            {:else if ui.action == "del"}
+                <DelEntry entryid={ui.entryid} on:submit={clearaction} on:cancel={clearaction}/>
+            {/if}
+        {/if}
         </div>
-
-{#if ui.mode == ""}
-        <Entries username={session.username} on:mode={entries_mode} />
-{:else if ui.mode == "add"}
-        <EditEntry on:submit={resetmode} on:cancel={resetmode}/>
-{:else if ui.mode == "edit"}
-        <EditEntry entryid={ui.entryid} on:submit={resetmode} on:cancel={resetmode}/>
-{:else if ui.mode == "del"}
-        <DelEntry entryid={ui.entryid} on:submit={resetmode} on:cancel={resetmode}/>
-{/if}
-
     </div>
     <div class="side-col">
         <div class="panel py-2 px-4 text-sm mb-2">
@@ -45,19 +51,28 @@ import DelEntry from "./DelEntry.svelte";
 
 let session = currentSession();
 let ui = {};
-ui.mode = "";
+ui.tabsel = "entries";
+ui.action = "";
 ui.entryid = 0;
 
 let tablinks;
 
 initPopupHandlers();
 
-function entries_mode(e) {
-    ui.mode = e.detail.mode;
+function tablinks_sel(e) {
+    ui.tabsel = e.detail;
+}
+function onaddentry(e) {
+    ui.action = "edit";
+    ui.entryid = 0;
+}
+function entries_action(e) {
+    ui.action = e.detail.action;
     ui.entryid = e.detail.entryid;
 }
-function resetmode() {
-    ui.mode = "";
+function clearaction(e) {
+    ui.action = "";
+    ui.entryid = 0;
 }
 
 </script>

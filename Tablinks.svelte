@@ -37,7 +37,7 @@ for (let i=0; i < ll.length; i++) {
 
 function onlink(signal) {
     sel = signal;
-    dispatch(signal);
+    dispatch("sel", signal);
 }
 
 </script>

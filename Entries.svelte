@@ -1,22 +1,14 @@
-<div class="panel py-2 px-4 mb-2 h-full">
-    <div class="flex flex-row justify-between">
-        <h1 class="font-bold mb-1 text-base">Entries</h1>
-        <div>
-            <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click|preventDefault='{e => switchmode(e, "add", 0)}'>Add Entry</a>
-        </div>
-    </div>
 {#each ui.entries as entry}
-    <div class="flex flex-row py-1">
-        <div class="flex-grow">
-            <a class="action text-sm text-gray-900" href="/entry?id={entry.entryid}" target="_blank">{entry.title}</a>
-        </div>
-        <div>
-            <a class="action text-xs text-gray-700 mr-2" href="#a" on:click|preventDefault='{e => switchmode(e, "edit", entry.entryid)}'>edit</a>
-            <a class="action text-xs text-gray-700" href="#a" on:click|preventDefault='{e => switchmode(e, "del", entry.entryid)}'>delete</a>
-        </div>
+<div class="flex flex-row">
+    <div class="flex-grow">
+        <a class="action text-sm text-gray-900" href="/entry?id={entry.entryid}" target="_blank">{entry.title}</a>
     </div>
-{/each}
+    <div>
+        <a class="action text-xs text-gray-700 mr-2" href="#a" on:click|preventDefault='{e => dispatchAction("edit", entry.entryid)}'>edit</a>
+        <a class="action text-xs text-gray-700" href="#a" on:click|preventDefault='{e => dispatchAction("del", entry.entryid)}'>delete</a>
+    </div>
 </div>
+{/each}
 
 <script>
 import {onMount, createEventDispatcher} from "svelte";
@@ -62,9 +54,9 @@ async function findentries(username) {
     }
 }
 
-function switchmode(e, mode, entryid) {
-    dispatch("mode", {
-        mode: mode,
+function dispatchAction(action, entryid) {
+    dispatch("action", {
+        action: action,
         entryid: entryid,
     });
 }
