@@ -1,12 +1,11 @@
 <form class="flex flex-col" on:submit={onsubmit}>
-    <div class="flex flex-row justify-between">
-        <h1 class="font-bold mb-1 text-base">Search Images</h1>
-        <div class="self-start">
-            <a class="action rounded text-xs px-1 py-0" href="#a">Link 1</a>
+    <div class="flex flex-row justify-between mb-2">
+        <h1 class="font-bold text-base">Search</h1>
+        <div class="text-sm">
+            <Tablinks links="images|Images;files|Files" />
         </div>
     </div>
     <div class="mb-2">
-        <label class="block font-bold uppercase text-xs" for="search">search</label>
         <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="search" name="search" type="text" bind:value={ui.qsearch}>
     </div>
 {#if ui.status != ""}
@@ -28,6 +27,7 @@
 
 <script>
 import {currentSession} from "./helpers.js";
+import Tablinks from "./Tablinks.svelte";
 import FileThumbnail from "./FileThumbnail.svelte";
 
 let svcurl = "/api";

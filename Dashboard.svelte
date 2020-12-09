@@ -7,6 +7,12 @@
 </div>
 <div class="flex flex-row flex-wrap justify-start">
     <div class="flex-grow mr-2 main-col">
+        <div class="panel py-2 px-4 mb-2 h-full">
+            <div class="flex flex-row justify-between mb-4 text-sm">
+                <Tablinks links="entries|Entries;images|Images;files|Files" bind:this={tablinks} />
+            </div>
+        </div>
+
 {#if ui.mode == ""}
         <Entries username={session.username} on:mode={entries_mode} />
 {:else if ui.mode == "add"}
@@ -16,16 +22,9 @@
 {:else if ui.mode == "del"}
         <DelEntry entryid={ui.entryid} on:submit={resetmode} on:cancel={resetmode}/>
 {/if}
+
     </div>
     <div class="side-col">
-        <div class="panel py-2 px-4 text-xs mb-2">
-            <h1 class="font-bold mb-1 text-base">{session.username}</h1>
-            <div class="flex flex-col">
-                <a href="#a" class="">Manage Files</a>
-                <a href="#a" class="">Change Password</a>
-                <a href="#a" class="">Delete Account</a>
-            </div>
-        </div>
         <div class="panel py-2 px-4 text-sm mb-2">
             <SearchImages />
         </div>
@@ -37,6 +36,7 @@
 
 <script>
 import {currentSession, initPopupHandlers} from "./helpers.js";
+import Tablinks from "./Tablinks.svelte";
 import Entries from "./Entries.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
@@ -47,6 +47,8 @@ let session = currentSession();
 let ui = {};
 ui.mode = "";
 ui.entryid = 0;
+
+let tablinks;
 
 initPopupHandlers();
 

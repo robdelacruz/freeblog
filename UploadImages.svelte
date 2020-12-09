@@ -1,12 +1,11 @@
 <form class="flex flex-col" bind:this={frm} on:submit={onsubmit}>
     <div class="flex flex-row justify-between">
-        <h1 class="font-bold mb-1 text-base">Upload Images</h1>
+        <h1 class="font-bold mb-1 text-base">Upload Files</h1>
         <div class="self-start">
             <a class="action rounded text-xs px-1 py-0" href="#a">Link 1</a>
         </div>
     </div>
     <div class="mb-2">
-        <label class="block font-bold uppercase text-xs" for="files">Select</label>
         <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="files" name="files" type="file" multiple bind:files={files}>
     </div>
 {#if files != null}

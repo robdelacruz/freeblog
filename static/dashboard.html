@@ -29,16 +29,20 @@
 
     <div class="flex flex-row">
         <h1 class="flex-grow font-bold text-xl my-2 mr-2">Dashboard</h1>
-        <div class="self-center">
-            <a href="#" class="action text-sm self-center rounded px-0 py-0 mr-2">link 1</a>
-            <a href="#" class="action text-sm self-center rounded px-0 py-0">link 2</a>
+        <div class="self-center text-xs">
+            <a href="#" class="action text-sm self-center rounded px-0 py-0 mr-2">Password</a>
+            <a href="#" class="action text-sm self-center rounded px-0 py-0">Deactivate</a>
         </div>
     </div>
     <div class="flex flex-row flex-wrap justify-start">
 
         <div class="flex-grow panel py-2 px-4 mb-2 mr-2" style="flex-basis: 640px;">
-            <div class="flex flex-row justify-between">
-                <h1 class="font-bold mb-1 text-base">Entries</h1>
+            <div class="flex flex-row justify-between mb-4 text-sm">
+                <div class="tablinks">
+                    <a href="#a" class="pb-1 border-b border-gray-500 mr-2 font-bold ">Entries</a>
+                    <a href="#a" class="mr-2">Images</a>
+                    <a href="#a" class="mr-2">Files</a>
+                </div>
                 <div>
                     <a class="action self-center rounded text-xs px-0 py-0" href="#a">Add Entry</a>
                 </div>
@@ -73,67 +77,17 @@
         </div>
 
         <div class="" style="flex-basis: 320px;">
-            <div class="panel py-2 px-4 text-sm mb-2">
-                <h1 class="font-bold mb-1 text-base">robdelacruz</h1>
-                <div class="flex flex-col">
-                    <a href="#" class="">Change Password</a>
-                    <a href="#" class="">Delete Account</a>
-                </div>
-            </div>
-
-            <form class="flex flex-col panel py-2 px-4 text-sm mb-2">
-                <div class="flex flex-row justify-between">
-                    <h1 class="font-bold mb-1 text-base">Upload Images</h1>
-                    <div class="self-start">
-                        <a class="action rounded text-xs px-1 py-0" href="#a">Link 1</a>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <label class="block font-bold uppercase text-xs" for="images">Select</label>
-                    <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="images" name="images" type="file" multiple>
-                </div>
-                <div class="flex flex-row flex-wrap mb-2 justify-start">
-                    <div class="flex flex-col items-center border px-1 pt-1">
-                        <img class="w-20 h-20" alt="pic" src="lky.png">
-                        <p class="text-xs">lky.png</p>
-                    </div>
-                    <div class="flex flex-col items-center border px-1 pt-1">
-                        <img class="w-20 h-20" src="sheep_vote.jpeg">
-                        <p class="text-xs">sheep_vote.jpeg</p>
-                    </div>
-                    <div class="flex flex-col items-center border px-1 pt-1">
-                        <img class="w-20 h-20" src="buster2.jpg">
-                        <p class="text-xs">buster2.jpg</p>
-                    </div>
-                    <div class="flex flex-col items-center border px-1 pt-1">
-                        <img class="w-20 h-20" src="lucy_youngcage.jpg">
-                        <p class="text-xs">lucy_youngcage.jpg</p>
-                    </div>
-                    <div class="flex flex-col items-center border px-1 pt-1">
-                        <img class="w-20 h-20 border p-2" src="wewokeuplikethis.jpg">
-                        <p class="text-xs">wewokeuplikethis.jpg</p>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <p class="uppercase italic text-xs">Processing...</p>
-                </div>
-                <div class="mb-2">
-                    <p class="font-bold uppercase text-xs">Server error uploading files</p>
-                </div>
-                <div class="flex flex-row justify-center mb-2 justify-center">
-                        <button class="inline w-full py-1 px-2 border border-gray-500 font-bold">Upload</button>
-                </div>
-            </form>
-
             <form class="flex flex-col panel py-2 px-4 text-sm">
-                <div class="flex flex-row justify-between">
-                    <h1 class="font-bold mb-1 text-base">Search Images</h1>
-                    <div class="self-start">
-                        <a class="action rounded text-xs px-1 py-0" href="#a">Link 1</a>
+                <div class="flex flex-row justify-between mb-2">
+                    <h1 class="font-bold text-base">Search</h1>
+                    <div class="text-sm">
+                        <div class="tablinks">
+                            <a href="#a" class="pb-1 border-b border-gray-500 mr-2 font-bold ">Images</a>
+                            <a href="#a" class="mr-2">Files</a>
+                        </div>
                     </div>
                 </div>
                 <div class="mb-2">
-                    <label class="block font-bold uppercase text-xs" for="search">search</label>
                     <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="search" name="search" type="text" value="">
                 </div>
                 <div class="mb-2">
@@ -181,6 +135,45 @@
                     </div>
                 </div>
             </form>
+
+            <form class="flex flex-col panel py-2 px-4 text-sm mb-2">
+                <h1 class="font-bold mb-1 text-base">Upload Files</h1>
+                <div class="mb-2">
+                    <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="images" name="images" type="file" multiple>
+                </div>
+                <div class="flex flex-row flex-wrap mb-2 justify-start">
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" alt="pic" src="lky.png">
+                        <p class="text-xs">lky.png</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="sheep_vote.jpeg">
+                        <p class="text-xs">sheep_vote.jpeg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="buster2.jpg">
+                        <p class="text-xs">buster2.jpg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="lucy_youngcage.jpg">
+                        <p class="text-xs">lucy_youngcage.jpg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20 border p-2" src="wewokeuplikethis.jpg">
+                        <p class="text-xs">wewokeuplikethis.jpg</p>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <p class="uppercase italic text-xs">Processing...</p>
+                </div>
+                <div class="mb-2">
+                    <p class="font-bold uppercase text-xs">Server error uploading files</p>
+                </div>
+                <div class="flex flex-row justify-center mb-2 justify-center">
+                        <button class="inline w-full py-1 px-2 border border-gray-500 font-bold">Upload</button>
+                </div>
+            </form>
+
         </div>
     </div>
 </div>
