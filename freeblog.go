@@ -710,6 +710,51 @@ func findFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]
 	}
 	qq = append(qq, qlimit, qoffset)
 
+	return findFilesWithParams(db, swhere, qq)
+}
+func findImageFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]*File, error) {
+	var qq []interface{}
+
+	swhere := "filename LIKE '%.png' OR filename LIKE '%.jpg' OR filename LIKE '%.jpeg' OR filename LIKE '%.gif' OR filename LIKE '%.bmp'"
+
+	if qusername != "" {
+		swhere += " AND u.username = ?"
+		qq = append(qq, qusername)
+	}
+	if qfilename != "" {
+		swhere += " AND filename LIKE ?"
+		qq = append(qq, fmt.Sprintf("%%%s%%", qfilename))
+	}
+	if qlimit == 0 {
+		// Use an arbitrarily large number to indicate no limit
+		qlimit = 10000
+	}
+	qq = append(qq, qlimit, qoffset)
+
+	return findFilesWithParams(db, swhere, qq)
+}
+func findAttachmentFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]*File, error) {
+	var qq []interface{}
+
+	swhere := "NOT filename LIKE '%.png' AND NOT filename LIKE '%.jpg' AND NOT filename LIKE '%.jpeg' AND NOT filename LIKE '%.gif' AND NOT filename LIKE '%.bmp'"
+
+	if qusername != "" {
+		swhere += " AND u.username = ?"
+		qq = append(qq, qusername)
+	}
+	if qfilename != "" {
+		swhere += " AND filename LIKE ?"
+		qq = append(qq, fmt.Sprintf("%%%s%%", qfilename))
+	}
+	if qlimit == 0 {
+		// Use an arbitrarily large number to indicate no limit
+		qlimit = 10000
+	}
+	qq = append(qq, qlimit, qoffset)
+
+	return findFilesWithParams(db, swhere, qq)
+}
+func findFilesWithParams(db *sql.DB, swhere string, qq []interface{}) ([]*File, error) {
 	s := fmt.Sprintf(`SELECT file_id, filename, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
 FROM file f
 LEFT OUTER JOIN user u ON u.user_id = f.user_id 
@@ -1382,8 +1427,15 @@ func apifilesHandler(db *sql.DB) http.HandlerFunc {
 		qfilename := r.FormValue("filename")
 		qlimit := atoi(r.FormValue("limit"))
 		qoffset := atoi(r.FormValue("offset"))
+		qfiletype := r.FormValue("filetype")
 
-		ff, err = findFiles(db, qusername, qfilename, qlimit, qoffset)
+		if qfiletype == "image" {
+			ff, err = findImageFiles(db, qusername, qfilename, qlimit, qoffset)
+		} else if qfiletype == "attachment" {
+			ff, err = findAttachmentFiles(db, qusername, qfilename, qlimit, qoffset)
+		} else {
+			ff, err = findFiles(db, qusername, qfilename, qlimit, qoffset)
+		}
 		if err != nil {
 			handleErr(w, err, "apifilesHandler")
 		}
