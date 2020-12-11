@@ -11,11 +11,10 @@
         <div class="flex flex-row py-1">
             <div class="flex-grow">
             {#if id == 0}
-                <p class="inline mr-1">New Entry:</p>
+                <p class="inline mr-1">New Image:</p>
             {:else}
                 <p class="inline mr-1">Editing:</p>
             {/if}
-                <a class="action font-bold text-gray-900" href="/entry?id={ui.entry.entryid}" target="_blank">{ui.entry.title}</a>
             </div>
             <div>
                 <button class="inline py-1 px-4 border border-gray-500 font-bold mr-2">Submit</button>
@@ -24,16 +23,19 @@
         </div>
         <div class="mb-2">
             <label class="block font-bold uppercase text-xs" for="title">title</label>
-            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="title" name="title" type="text" bind:value={ui.entry.title}>
-        </div>
-        <div class="flex-grow flex flex-col mb-2">
-            <label class="block font-bold uppercase text-xs" for="body">entry</label>
-            <textarea class="flex-grow block border border-gray-500 py-1 px-4 w-full leading-5" id="body" name="body" bind:value={ui.entry.body}></textarea>
+            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="title" name="title" type="text">
         </div>
         <div class="mb-2">
-            <label class="block font-bold uppercase text-xs" for="tags">tags</label>
-            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="tags" name="tags" type="text" value="">
+            <label class="block font-bold uppercase text-xs" for="file">replace file</label>
+            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="file" name="file" type="file" bind:files={files}>
         </div>
+    {#if files != null}
+        <div class="mb-2">
+        {#each files as previewfile (previewfile.name)}
+            <img class="max-w-full" alt="{previewfile.name}" title="{previewfile.name}" use:setimgsrc={previewfile}>
+        {/each}
+        </div>
+    {/if}
     {#if ui.submitstatus != ""}
         <div class="mb-2">
             <p class="uppercase italic text-xs">{ui.submitstatus}</p>
@@ -52,21 +54,14 @@ import {currentSession} from "./helpers.js";
 export let id = 0;
 
 let svcurl = "/api";
-let session = currentSession();
 
-let blankentry = {
-    entryid: 0,
-    title: "",
-    body: "",
-    tags: "",
-};
-
+let files;
 let ui = {};
 
 ui.loadstatus = "";
 ui.submitstatus = "";
-ui.entry = blankentry;
 
+/*
 init(id);
 
 async function init(qentryid) {
@@ -153,6 +148,22 @@ async function submitentry(e) {
         return [savedentry, null];
     } catch(err) {
         return [null, err];
+    }
+}
+*/
+
+function onsubmit(e) {
+}
+function oncancel(e) {
+}
+function init(id) {
+}
+
+function setimgsrc(node, previewfile) {
+    let fr = new FileReader();
+    fr.readAsDataURL(previewfile)
+    fr.onloadend = function() {
+        node.setAttribute("src", fr.result);
     }
 }
 </script>

@@ -41,6 +41,7 @@ type Entry struct {
 type File struct {
 	Fileid   int64  `json:"fileid"`
 	Filename string `json:"filename"`
+	Title    string `json:"title"`
 	Url      string `json:"url"`
 	Bytes    []byte `json:"-"`
 	Createdt string `json:"createdt"`
@@ -148,7 +149,7 @@ func createTables(newfile string) {
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
 		"CREATE TABLE entry (entry_id INTEGER PRIMARY KEY NOT NULL, title TEXT, body TEXT, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
-		"CREATE TABLE file (file_id INTEGER PRIMARY KEY NOT NULL, filename TEXT, bytes BLOB, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
+		"CREATE TABLE file (file_id INTEGER PRIMARY KEY NOT NULL, filename TEXT, title TEXT, bytes BLOB, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
 	}
 
 	tx, err := db.Begin()
@@ -1230,6 +1231,7 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			e.Userid = u.Userid
+			e.Createdt = isodate(time.Now())
 			newid, err := createEntry(db, &e)
 			if err != nil {
 				handleErr(w, err, "POST apientryHandler")
@@ -1370,8 +1372,8 @@ func makeUniqueFilename(db *sql.DB, filename string) string {
 func createFile(db *sql.DB, f *File) (int64, error) {
 	f.Filename = makeUniqueFilename(db, f.Filename)
 
-	s := "INSERT INTO file (filename, bytes, createdt, user_id) VALUES (?, ?, ?, ?)"
-	result, err := sqlexec(db, s, f.Filename, f.Bytes, f.Createdt, f.Userid)
+	s := "INSERT INTO file (filename, title, bytes, createdt, user_id) VALUES (?, ?, ?, ?, ?)"
+	result, err := sqlexec(db, s, f.Filename, f.Title, f.Bytes, f.Createdt, f.Userid)
 	if err != nil {
 		return 0, err
 	}
@@ -1382,10 +1384,22 @@ func createFile(db *sql.DB, f *File) (int64, error) {
 	return fileid, nil
 }
 
+func baseFilename(filename string) string {
+	ext := filepath.Ext(filename)
+	base := strings.TrimSuffix(filename, ext)
+	return base
+}
+
 func apiuploadfilesHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Use POST method", 401)
+			return
+		}
+
+		u := validateApiUser(db, r)
+		if u == nil {
+			http.Error(w, "Invalid user", 401)
 			return
 		}
 
@@ -1406,9 +1420,10 @@ func apiuploadfilesHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			file.Filename = h.Filename
+			file.Title = baseFilename(h.Filename)
 			file.Bytes = bs
 			file.Createdt = isodate(time.Now())
-
+			file.Userid = u.Userid
 			_, err = createFile(db, &file)
 			if err != nil {
 				handleErr(w, err, "apiuploadfilesHandler")

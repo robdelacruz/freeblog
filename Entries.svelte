@@ -13,8 +13,6 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
-import {currentSession} from "./helpers.js";
-let session = currentSession();
 
 export let username = "";
 
@@ -37,9 +35,9 @@ async function init(username) {
 
 // Returns []entries, error
 async function findentries(username) {
-    let sreq = `${svcurl}/entries`;
-    if (session.userid > 1) {
-        sreq = `${svcurl}/entries?username=${username}`;
+    let sreq = `${svcurl}/entries?username=${username}`;
+    if (username == "admin") {
+        sreq = `${svcurl}/entries`;
     }
     try {
         let res = await fetch(sreq, {method: "GET"});
@@ -57,7 +55,7 @@ async function findentries(username) {
 function dispatchAction(action, entryid) {
     dispatch("action", {
         action: action,
-        entryid: entryid,
+        itemid: entryid,
     });
 }
 

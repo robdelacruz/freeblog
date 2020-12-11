@@ -3,7 +3,7 @@
         <p class="uppercase italic text-xs">{ui.loadstatus}</p>
     </div>
     <div class="mb-2">
-        <a class="action self-center rounded text-xs px-0 py-0 mr-2" href="#a" on:click|preventDefault="{e => init(entryid)}">Retry</a>
+        <a class="action self-center rounded text-xs px-0 py-0 mr-2" href="#a" on:click|preventDefault="{e => init(id)}">Retry</a>
         <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click|preventDefault={oncancel}>Cancel</a>
     </div>
 {:else}
@@ -33,7 +33,7 @@
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
 import {currentSession} from "./helpers.js";
-export let entryid = 0;
+export let id = 0;
 
 let svcurl = "/api";
 let session = currentSession();
@@ -52,7 +52,7 @@ ui.submitstatus = "";
 ui.entry = blankentry;
 ui.entryhtml = "";
 
-init(entryid);
+init(id);
 
 async function init(qentryid) {
     ui.loadstatus = "loading entry...";
@@ -92,7 +92,7 @@ function oncancel(e) {
 async function onsubmit(e) {
     ui.submitstatus = "processing";
 
-    let err = await delentry(entryid);
+    let err = await delentry(id);
     if (err != null) {
         console.error(err);
         ui.submitstatus = "server error deleting entry";

@@ -21,12 +21,32 @@
 
         {#if ui.tabsel == "entries"}
             {#if ui.action == ""}
-                <Entries username={session.username} on:action={entries_action} />
+                <Entries username={session.username} on:action={item_action} />
             {:else if ui.action == "edit"}
-                <EditEntry entryid={ui.entryid} on:submit={clearaction} on:cancel={clearaction}/>
+                <EditEntry id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {:else if ui.action == "del"}
-                <DelEntry entryid={ui.entryid} on:submit={clearaction} on:cancel={clearaction}/>
+                <DelEntry id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {/if}
+        {:else if ui.tabsel == "images"}
+            {#if ui.action == ""}
+                <Images username={session.username} on:action={item_action} />
+            {:else if ui.action == "edit"}
+                <EditImage id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
+<!--
+            {:else if ui.action == "del"}
+                <DelImage id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
+-->
+            {/if}
+<!--
+        {:else if ui.tabsel == "files"}
+            {#if ui.action == ""}
+                <Files username={session.username} on:action={item_action} />
+            {:else if ui.action == "edit"}
+                <EditFile id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
+            {:else if ui.action == "del"}
+                <DelFile id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
+            {/if}
+-->
         {/if}
         </div>
     </div>
@@ -44,16 +64,18 @@
 import {currentSession, initPopupHandlers} from "./helpers.js";
 import Tablinks from "./Tablinks.svelte";
 import Entries from "./Entries.svelte";
-import UploadImages from "./UploadImages.svelte";
-import SearchImages from "./SearchImages.svelte";
 import EditEntry from "./EditEntry.svelte";
 import DelEntry from "./DelEntry.svelte";
+import Images from "./Images.svelte";
+import EditImage from "./EditImage.svelte";
+import UploadImages from "./UploadImages.svelte";
+import SearchImages from "./SearchImages.svelte";
 
 let session = currentSession();
 let ui = {};
 ui.tabsel = "entries";
 ui.action = "";
-ui.entryid = 0;
+ui.itemid = 0;
 
 let tablinks;
 
@@ -64,15 +86,15 @@ function tablinks_sel(e) {
 }
 function onaddentry(e) {
     ui.action = "edit";
-    ui.entryid = 0;
+    ui.itemid = 0;
 }
-function entries_action(e) {
+function item_action(e) {
     ui.action = e.detail.action;
-    ui.entryid = e.detail.entryid;
+    ui.itemid = e.detail.itemid;
 }
 function clearaction(e) {
     ui.action = "";
-    ui.entryid = 0;
+    ui.itemid = 0;
 }
 
 </script>
