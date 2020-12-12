@@ -11,7 +11,7 @@
         <div class="flex flex-row py-1">
             <div class="flex-grow">
             {#if id == 0}
-                <p class="inline mr-1">New Image:</p>
+                <p class="inline mr-1">New File:</p>
             {:else}
                 <p class="inline mr-1">Editing:</p>
             {/if}
@@ -32,15 +32,15 @@
         </div>
         <div class="mb-2">
             <label class="block font-bold uppercase text-xs" for="file">replace file</label>
-            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="file" name="file" type="file" accept=".jpg, .jpeg, .png, .gif, .bmp, .tif, .tiff" bind:files={files}>
+            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="file" name="file" type="file" bind:files={files}>
         </div>
         <div class="mb-2">
     {#if files != null}
         {#each files as previewfile (previewfile.name)}
-            <img class="max-w-full" alt="{previewfile.name}" title="{previewfile.name}" use:setimgsrc={previewfile}>
+            <p class="action text-xs" use:setfilesrc={previewfile}>{previewfile.name}</p>
         {/each}
     {:else}
-            <img class="max-w-full" alt="{ui.file.title}" title="{ui.file.title}" src="{`${ui.file.url}&${randnum}`}">
+            <p class="action text-xs">{ui.file.filename}</p>
     {/if}
         </div>
     {#if ui.submitstatus != ""}
@@ -78,7 +78,7 @@ let randnum = performance.now();
 init(id);
 
 async function init(qid) {
-    ui.loadstatus = "loading image...";
+    ui.loadstatus = "loading file...";
 
     if (qid == 0) {
         ui.loadstatus = "";
@@ -89,7 +89,7 @@ async function init(qid) {
     let [f, err] = await findfile(qid);
     if (err !=  null) {
         console.error(err);
-        ui.loadstatus = "Server error loading image";
+        ui.loadstatus = "Server error loading file";
         ui.file = blankfile;
         return;
     }
@@ -98,7 +98,7 @@ async function init(qid) {
     ui.file = f;
 }
 
-function setimgsrc(node, previewfile) {
+function setfilesrc(node, previewfile) {
     // title is filename without the extension
     ui.file.filename = previewfile.name;
     ui.file.title = previewfile.name.replace(/\.[^.]*$/, "");
@@ -106,8 +106,8 @@ function setimgsrc(node, previewfile) {
     let fr = new FileReader();
     fr.readAsDataURL(previewfile)
     fr.onloadend = function() {
+        console.log(fr.result);
         node.setAttribute("src", fr.result);
-        //let s = fr.result.replace(/^data:image\/(.*);base64,/, "");
         let s = fr.result.replace(/^data:.*;base64,/, "");
         ui.file.bytes = s;
     }
@@ -119,7 +119,7 @@ async function onsubmit(e) {
     let [savedfile, err] = await submitfile(ui.file);
     if (err != null) {
         console.error(err);
-        ui.submitstatus = "server error submitting image";
+        ui.submitstatus = "server error submitting file";
         return;
     }
 
@@ -179,4 +179,5 @@ async function submitfile(f) {
 }
 
 </script>
+
 

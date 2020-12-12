@@ -39,7 +39,6 @@
             {:else if ui.action == "del"}
                 <DelImage id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {/if}
-<!--
         {:else if ui.tabsel == "files"}
             {#if ui.action == ""}
                 <Files username={session.username} on:action={item_action} />
@@ -48,7 +47,6 @@
             {:else if ui.action == "del"}
                 <DelFile id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {/if}
--->
         {/if}
         </div>
     </div>
@@ -71,6 +69,9 @@ import DelEntry from "./DelEntry.svelte";
 import Images from "./Images.svelte";
 import EditImage from "./EditImage.svelte";
 import DelImage from "./DelImage.svelte";
+import Files from "./Files.svelte";
+import EditFile from "./EditFile.svelte";
+import DelFile from "./DelFile.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
 

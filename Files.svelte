@@ -1,0 +1,64 @@
+{#each ui.files as file}
+<div class="flex flex-row">
+    <div class="flex-grow">
+        <a class="action text-sm text-gray-900" href="/file?id={file.fileid}" target="_blank">{file.filename}</a>
+    </div>
+    <div>
+        <a class="action text-xs text-gray-700 mr-2" href="#a" on:click|preventDefault='{e => dispatchAction("edit", file.fileid)}'>edit</a>
+        <a class="action text-xs text-gray-700" href="#a" on:click|preventDefault='{e => dispatchAction("del", file.fileid)}'>delete</a>
+    </div>
+</div>
+{/each}
+
+<script>
+import {onMount, createEventDispatcher} from "svelte";
+let dispatch = createEventDispatcher();
+
+export let username = "";
+
+let svcurl = "/api";
+let ui = {};
+ui.files = [];
+ui.status = "";
+
+init(username);
+
+async function init(username) {
+    ui.status = "";
+    let [ff, err] = await findfiles(username);
+    if (err != null) {
+        console.error(err);
+        ui.status = "Server error while fetching files";
+    }
+    ui.files = ff;
+}
+
+// Returns []files, error
+async function findfiles(username) {
+    let sreq = `${svcurl}/files?filetype=attachment&username=${username}`;
+    if (username == "admin") {
+        sreq = `${svcurl}/files?filetype=attachment`;
+    }
+    try {
+        let res = await fetch(sreq, {method: "GET"});
+        if (!res.ok) {
+            let s = await res.text();
+            return [[], new Error(s)];
+        }
+        let files = await res.json();
+        return [files, null];
+    } catch (err) {
+        return [[], err];
+    }
+}
+
+function dispatchAction(action, itemid) {
+    dispatch("action", {
+        action: action,
+        itemid: itemid,
+    });
+}
+
+</script>
+
+
