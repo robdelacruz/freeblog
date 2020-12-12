@@ -13,7 +13,11 @@
                 <Tablinks links="entries|Entries;images|Images;files|Files" bind:sel={ui.tabsel} />
                 <div>
                 {#if ui.tabsel == "entries"}
-                    <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click={onaddentry}>Add Entry</a>
+                    <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click={onadditem}>Add Entry</a>
+                {:else if ui.tabsel == "images"}
+                    <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click={onadditem}>Add Image</a>
+                {:else if ui.tabsel == "file"}
+                    <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click={onadditem}>Add File</a>
                 {/if}
                 </div>
             </div>
@@ -80,7 +84,7 @@ let tablinks;
 
 initPopupHandlers();
 
-function onaddentry(e) {
+function onadditem(e) {
     ui.action = "edit";
     ui.itemid = 0;
 }

@@ -2,7 +2,7 @@
     <div class="flex flex-row justify-between mb-2">
         <h1 class="font-bold text-base">Search</h1>
         <div class="text-sm">
-            <Tablinks links="images|Images;files|Files" />
+            <Tablinks links="images|Images;files|Files" bind:sel={ui.tabsel} on:sel={ontabsel} />
         </div>
     </div>
     <div class="mb-2">
@@ -18,28 +18,43 @@
         <p class="font-bold uppercase text-xs">{ui.err}</p>
     </div>
 {/if}
+{#if ui.tabsel == "images"}
     <div class="flex flex-row flex-wrap mb-2 justify-start">
-{#each ui.files as f (f.fileid)}
+    {#each ui.files as f (f.fileid)}
         <FileThumbnail title={f.title} url={f.url} />
-{/each}
+    {/each}
     </div>
+{:else if ui.tabsel == "files"}
+    <div class="mb-2">
+    {#each ui.files as f (f.fileid)}
+        <FileLink filename={f.filename} title={f.title} url={f.url} />
+    {/each}
+    </div>
+{/if}
 </form>
 
 <script>
-import {currentSession} from "./helpers.js";
 import Tablinks from "./Tablinks.svelte";
 import FileThumbnail from "./FileThumbnail.svelte";
+import FileLink from "./FileLink.svelte";
 
 let svcurl = "/api";
-let session = currentSession();
 let ui = {};
+ui.tabsel = "images";
 ui.qsearch = "";
 ui.files = [];
 ui.status = "";
 ui.err = "";
 
+function ontabsel(e) {
+    ui.files = [];
+}
+
 async function searchfiles(qsearch) {
-    let sreq = `${svcurl}/files?filename=${qsearch}`;
+    let sreq = `${svcurl}/files?filetype=image&filename=${qsearch}`;
+    if (ui.tabsel == "files") {
+        sreq = `${svcurl}/files?filetype=attachment&filename=${qsearch}`;
+    }
     try {
         let res = await fetch(sreq, {method: "GET"});
         if (!res.ok) {

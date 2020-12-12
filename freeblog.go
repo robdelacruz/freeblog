@@ -716,14 +716,14 @@ func findFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]
 func findImageFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]*File, error) {
 	var qq []interface{}
 
-	swhere := "filename LIKE '%.png' OR filename LIKE '%.jpg' OR filename LIKE '%.jpeg' OR filename LIKE '%.gif' OR filename LIKE '%.bmp'"
+	swhere := "(filename LIKE '%.png' OR filename LIKE '%.jpg' OR filename LIKE '%.jpeg' OR filename LIKE '%.gif' OR filename LIKE '%.bmp' OR filename LIKE '%.tif' OR filename LIKE '%.tiff')"
 
 	if qusername != "" {
-		swhere += " AND u.username = ?"
+		swhere += " AND (u.username = ?)"
 		qq = append(qq, qusername)
 	}
 	if qfilename != "" {
-		swhere += " AND filename LIKE ?"
+		swhere += " AND (filename LIKE ?)"
 		qq = append(qq, fmt.Sprintf("%%%s%%", qfilename))
 	}
 	if qlimit == 0 {
@@ -737,14 +737,14 @@ func findImageFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int
 func findAttachmentFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]*File, error) {
 	var qq []interface{}
 
-	swhere := "NOT filename LIKE '%.png' AND NOT filename LIKE '%.jpg' AND NOT filename LIKE '%.jpeg' AND NOT filename LIKE '%.gif' AND NOT filename LIKE '%.bmp'"
+	swhere := "(NOT filename LIKE '%.png' AND NOT filename LIKE '%.jpg' AND NOT filename LIKE '%.jpeg' AND NOT filename LIKE '%.gif' AND NOT filename LIKE '%.bmp' AND NOT filename LIKE '%.tif' AND NOT filename LIKE '%.tiff')"
 
 	if qusername != "" {
-		swhere += " AND u.username = ?"
+		swhere += " AND (u.username = ?)"
 		qq = append(qq, qusername)
 	}
 	if qfilename != "" {
-		swhere += " AND filename LIKE ?"
+		swhere += " AND (filename LIKE ?)"
 		qq = append(qq, fmt.Sprintf("%%%s%%", qfilename))
 	}
 	if qlimit == 0 {

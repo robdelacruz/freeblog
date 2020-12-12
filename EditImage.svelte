@@ -1,4 +1,4 @@
-{#if ui.loadstatus != "" || ui.file == null}
+{#if ui.loadstatus != ""}
     <div class="mb-2">
         <p class="uppercase italic text-xs">{ui.loadstatus}</p>
     </div>
@@ -40,7 +40,7 @@
             <img class="max-w-full" alt="{previewfile.name}" title="{previewfile.name}" use:setimgsrc={previewfile}>
         {/each}
     {:else}
-            <img class="max-w-full" alt="{ui.file.title}" title="{ui.file.title}" src="{ui.file.url}">
+            <img class="max-w-full" alt="{ui.file.title}" title="{ui.file.title}" src="{`${ui.file.url}&${randnum}`}">
     {/if}
         </div>
     {#if ui.submitstatus != ""}
@@ -57,17 +57,23 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
-import {currentSession} from "./helpers.js";
 export let id = 0;
 
 let svcurl = "/api";
+let blankfile = {
+    fileid: 0,
+    filename: "",
+    title: "",
+    bytes: [],
+};
 
 let files;
 let ui = {};
-ui.file = null;
-
+ui.file = blankfile;
 ui.loadstatus = "";
 ui.submitstatus = "";
+
+let randnum = performance.now();
 
 init(id);
 
@@ -76,7 +82,7 @@ async function init(qid) {
 
     if (qid == 0) {
         ui.loadstatus = "";
-        ui.file = null;
+        ui.file = blankfile;
         return;
     }
 
@@ -84,7 +90,7 @@ async function init(qid) {
     if (err !=  null) {
         console.error(err);
         ui.loadstatus = "Server error loading image";
-        ui.file = null;
+        ui.file = blankfile;
         return;
     }
 

@@ -48,12 +48,9 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
-import {currentSession} from "./helpers.js";
 export let id = 0;
 
 let svcurl = "/api";
-let session = currentSession();
-
 let blankentry = {
     entryid: 0,
     title: "",
