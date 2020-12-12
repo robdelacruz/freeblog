@@ -10,7 +10,7 @@
         <div class="panel py-2 px-4 mb-2 h-full">
         {#if ui.action == ""}
             <div class="flex flex-row justify-between mb-4 text-sm">
-                <Tablinks links="entries|Entries;images|Images;files|Files" on:sel={tablinks_sel} />
+                <Tablinks links="entries|Entries;images|Images;files|Files" bind:sel={ui.tabsel} />
                 <div>
                 {#if ui.tabsel == "entries"}
                     <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click={onaddentry}>Add Entry</a>
@@ -32,10 +32,8 @@
                 <Images username={session.username} on:action={item_action} />
             {:else if ui.action == "edit"}
                 <EditImage id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
-<!--
             {:else if ui.action == "del"}
                 <DelImage id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
--->
             {/if}
 <!--
         {:else if ui.tabsel == "files"}
@@ -68,6 +66,7 @@ import EditEntry from "./EditEntry.svelte";
 import DelEntry from "./DelEntry.svelte";
 import Images from "./Images.svelte";
 import EditImage from "./EditImage.svelte";
+import DelImage from "./DelImage.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
 
@@ -81,9 +80,6 @@ let tablinks;
 
 initPopupHandlers();
 
-function tablinks_sel(e) {
-    ui.tabsel = e.detail;
-}
 function onaddentry(e) {
     ui.action = "edit";
     ui.itemid = 0;
