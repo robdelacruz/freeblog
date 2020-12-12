@@ -20,7 +20,7 @@
 {/if}
     <div class="flex flex-row flex-wrap mb-2 justify-start">
 {#each ui.files as f (f.fileid)}
-        <FileThumbnail filename={f.filename} url={f.url} />
+        <FileThumbnail title={f.title} url={f.url} />
 {/each}
     </div>
 </form>

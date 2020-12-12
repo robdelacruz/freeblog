@@ -43,7 +43,7 @@ type File struct {
 	Filename string `json:"filename"`
 	Title    string `json:"title"`
 	Url      string `json:"url"`
-	Bytes    []byte `json:"-"`
+	Bytes    []byte `json:"bytes"`
 	Createdt string `json:"createdt"`
 	Userid   int64  `json:"userid"`
 	Username string `json:"username"`
@@ -56,8 +56,15 @@ func (e *Entry) String() string {
 	}
 	return string(bs)
 }
+func (f *File) String() string {
+	bs, err := json.MarshalIndent(f, "", "\t")
+	if err != nil {
+		return ""
+	}
+	return string(bs)
+}
 func fileurl(f *File) string {
-	return fmt.Sprintf("/file/?filename=%s", qescape(f.Filename))
+	return fmt.Sprintf("/file/?id=%d", f.Fileid)
 }
 
 func main() {
@@ -121,6 +128,7 @@ func run(args []string) error {
 	http.HandleFunc("/api/entry/", apientryHandler(db))
 	http.HandleFunc("/api/entries/", apientriesHandler(db))
 	http.HandleFunc("/api/uploadfiles/", apiuploadfilesHandler(db))
+	http.HandleFunc("/api/file/", apifileHandler(db))
 	http.HandleFunc("/api/files/", apifilesHandler(db))
 
 	port := "8000"
@@ -652,23 +660,15 @@ LIMIT ? OFFSET ?`, swhere)
 	}
 	return ee, nil
 }
-func delEntry(db *sql.DB, entryid int64) error {
-	s := `DELETE FROM entry WHERE entry_id = ?`
-	_, err := sqlexec(db, s, entryid)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func findFile(db *sql.DB, fileid int64) *File {
-	s := `SELECT file_id, filename, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
+	s := `SELECT file_id, filename, title, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
 FROM file f
 LEFT OUTER JOIN user u ON u.user_id = f.user_id 
 WHERE file_id = ?`
 	row := db.QueryRow(s, fileid)
 	var f File
-	err := row.Scan(&f.Fileid, &f.Filename, &f.Bytes, &f.Createdt, &f.Userid, &f.Username)
+	err := row.Scan(&f.Fileid, &f.Filename, &f.Title, &f.Bytes, &f.Createdt, &f.Userid, &f.Username)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -678,13 +678,13 @@ WHERE file_id = ?`
 	return &f
 }
 func findFileByFilename(db *sql.DB, filename string) *File {
-	s := `SELECT file_id, filename, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
+	s := `SELECT file_id, filename, title, bytes, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
 FROM file f
 LEFT OUTER JOIN user u ON u.user_id = f.user_id 
 WHERE filename = ?`
 	row := db.QueryRow(s, filename)
 	var f File
-	err := row.Scan(&f.Fileid, &f.Filename, &f.Bytes, &f.Createdt, &f.Userid, &f.Username)
+	err := row.Scan(&f.Fileid, &f.Filename, &f.Title, &f.Bytes, &f.Createdt, &f.Userid, &f.Username)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -756,7 +756,7 @@ func findAttachmentFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffse
 	return findFilesWithParams(db, swhere, qq)
 }
 func findFilesWithParams(db *sql.DB, swhere string, qq []interface{}) ([]*File, error) {
-	s := fmt.Sprintf(`SELECT file_id, filename, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
+	s := fmt.Sprintf(`SELECT file_id, filename, title, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
 FROM file f
 LEFT OUTER JOIN user u ON u.user_id = f.user_id 
 WHERE %s 
@@ -769,7 +769,7 @@ LIMIT ? OFFSET ?`, swhere)
 	ff := []*File{}
 	for rows.Next() {
 		var f File
-		rows.Scan(&f.Fileid, &f.Filename, &f.Createdt, &f.Userid, &f.Username)
+		rows.Scan(&f.Fileid, &f.Filename, &f.Title, &f.Createdt, &f.Userid, &f.Username)
 		f.Url = fileurl(&f)
 		ff = append(ff, &f)
 	}
@@ -1165,6 +1165,45 @@ func editEntry(db *sql.DB, e *Entry) error {
 	}
 	return nil
 }
+func delEntry(db *sql.DB, entryid int64) error {
+	s := `DELETE FROM entry WHERE entry_id = ?`
+	_, err := sqlexec(db, s, entryid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func createFile(db *sql.DB, f *File) (int64, error) {
+	f.Filename = makeUniqueFilename(db, f.Filename)
+
+	s := "INSERT INTO file (filename, title, bytes, createdt, user_id) VALUES (?, ?, ?, ?, ?)"
+	result, err := sqlexec(db, s, f.Filename, f.Title, f.Bytes, f.Createdt, f.Userid)
+	if err != nil {
+		return 0, err
+	}
+	fileid, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return fileid, nil
+}
+func editFile(db *sql.DB, f *File) error {
+	f.Filename = makeUniqueFilename(db, f.Filename)
+	s := "UPDATE file SET filename = ?, title = ?, bytes = ? WHERE file_id = ?"
+	_, err := sqlexec(db, s, f.Filename, f.Title, f.Bytes, f.Fileid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func delFile(db *sql.DB, fileid int64) error {
+	s := `DELETE FROM file WHERE file_id = ?`
+	_, err := sqlexec(db, s, fileid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func dashboardHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -1369,21 +1408,6 @@ func makeUniqueFilename(db *sql.DB, filename string) string {
 	return uniqueFilename
 }
 
-func createFile(db *sql.DB, f *File) (int64, error) {
-	f.Filename = makeUniqueFilename(db, f.Filename)
-
-	s := "INSERT INTO file (filename, title, bytes, createdt, user_id) VALUES (?, ?, ?, ?, ?)"
-	result, err := sqlexec(db, s, f.Filename, f.Title, f.Bytes, f.Createdt, f.Userid)
-	if err != nil {
-		return 0, err
-	}
-	fileid, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	return fileid, nil
-}
-
 func baseFilename(filename string) string {
 	ext := filepath.Ext(filename)
 	base := strings.TrimSuffix(filename, ext)
@@ -1430,6 +1454,124 @@ func apiuploadfilesHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 		}
+	}
+}
+
+// GET /api/file?id=123
+// DELETE /api/file?id=123
+// POST /api/file {...}
+// PUT /api/file {...}
+func apifileHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			qid := idtoi(r.FormValue("id"))
+			if qid == 0 {
+				http.Error(w, "Specify file id (id=nnn)", 401)
+				return
+			}
+			f := findFile(db, qid)
+			if f == nil {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+			f.Url = fileurl(f)
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", f)
+			return
+		} else if r.Method == "POST" {
+			u := validateApiUser(db, r)
+			if u == nil {
+				http.Error(w, "Invalid user", 401)
+				return
+			}
+			bs, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				handleErr(w, err, "POST apientryHandler")
+				return
+			}
+			var f File
+			err = json.Unmarshal(bs, &f)
+			if err != nil {
+				handleErr(w, err, "POST apifileHandler")
+				return
+			}
+			f.Userid = u.Userid
+			f.Createdt = isodate(time.Now())
+			newid, err := createFile(db, &f)
+			if err != nil {
+				handleErr(w, err, "POST apifileHandler")
+				return
+			}
+			f.Fileid = newid
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", &f)
+			return
+		} else if r.Method == "PUT" {
+			u := validateApiUser(db, r)
+			if u == nil {
+				http.Error(w, "Invalid user", 401)
+				return
+			}
+			bs, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				handleErr(w, err, "PUT apifileHandler 2")
+				return
+			}
+			var f File
+			err = json.Unmarshal(bs, &f)
+			if err != nil {
+				handleErr(w, err, "PUT apifileHandler 3")
+				return
+			}
+			if u.Userid != 1 && f.Userid != u.Userid {
+				http.Error(w, "Not authorized", 401)
+				return
+			}
+			err = editFile(db, &f)
+			if err != nil {
+				handleErr(w, err, "PUT apifileHandler 4")
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s\n", &f)
+			return
+		} else if r.Method == "DELETE" {
+			u := validateApiUser(db, r)
+			if u == nil {
+				http.Error(w, "Invalid user", 401)
+				return
+			}
+			qid := idtoi(r.FormValue("id"))
+			if qid == 0 {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+
+			f := findFile(db, qid)
+			if f == nil {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+			if u.Userid != 1 && f.Userid != u.Userid {
+				http.Error(w, "Not authorized", 401)
+				return
+			}
+
+			err := delFile(db, qid)
+			if err != nil {
+				handleErr(w, err, "DEL apifileHandler")
+				return
+			}
+			return
+		}
+
+		http.Error(w, "Use GET/POST/PUT/DELETE", 401)
 	}
 }
 

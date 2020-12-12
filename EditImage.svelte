@@ -1,4 +1,4 @@
-{#if ui.loadstatus != ""}
+{#if ui.loadstatus != "" || ui.file == null}
     <div class="mb-2">
         <p class="uppercase italic text-xs">{ui.loadstatus}</p>
     </div>
@@ -15,6 +15,7 @@
             {:else}
                 <p class="inline mr-1">Editing:</p>
             {/if}
+                <a class="action font-bold text-gray-900" href="/file?id={ui.file.fileid}" target="_blank">{ui.file.filename}</a>
             </div>
             <div>
                 <button class="inline py-1 px-4 border border-gray-500 font-bold mr-2">Submit</button>
@@ -22,20 +23,26 @@
             </div>
         </div>
         <div class="mb-2">
+            <label class="block font-bold uppercase text-xs" for="filename">filename</label>
+            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="filename" name="filename" type="text" bind:value={ui.file.filename}>
+        </div>
+        <div class="mb-2">
             <label class="block font-bold uppercase text-xs" for="title">title</label>
-            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="title" name="title" type="text">
+            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="title" name="title" type="text" bind:value={ui.file.title}>
         </div>
         <div class="mb-2">
             <label class="block font-bold uppercase text-xs" for="file">replace file</label>
-            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="file" name="file" type="file" bind:files={files}>
+            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="file" name="file" type="file" accept=".jpg, .jpeg, .png, .gif, .bmp, .tif, .tiff" bind:files={files}>
         </div>
-    {#if files != null}
         <div class="mb-2">
+    {#if files != null}
         {#each files as previewfile (previewfile.name)}
             <img class="max-w-full" alt="{previewfile.name}" title="{previewfile.name}" use:setimgsrc={previewfile}>
         {/each}
-        </div>
+    {:else}
+            <img class="max-w-full" alt="{ui.file.title}" title="{ui.file.title}" src="{ui.file.url}">
     {/if}
+        </div>
     {#if ui.submitstatus != ""}
         <div class="mb-2">
             <p class="uppercase italic text-xs">{ui.submitstatus}</p>
@@ -57,56 +64,70 @@ let svcurl = "/api";
 
 let files;
 let ui = {};
+ui.file = null;
 
 ui.loadstatus = "";
 ui.submitstatus = "";
 
-/*
 init(id);
 
-async function init(qentryid) {
-    ui.loadstatus = "loading entry...";
+async function init(qid) {
+    ui.loadstatus = "loading file...";
 
-    if (qentryid == 0) {
+    if (qid == 0) {
         ui.loadstatus = "";
-        ui.entry = blankentry;
+        ui.file = null;
         return;
     }
 
-    let [entry, err] = await findentry(qentryid);
+    let [f, err] = await findfile(qid);
     if (err !=  null) {
         console.error(err);
-        ui.loadstatus = "Server error loading entry";
-        ui.entry = blankentry;
+        ui.loadstatus = "Server error loading file";
+        ui.file = null;
         return;
     }
 
     ui.loadstatus = "";
-    ui.entry = entry;
+    ui.file = f;
+}
+
+function setimgsrc(node, previewfile) {
+    // title is filename without the extension
+    ui.file.filename = previewfile.name;
+    ui.file.title = previewfile.name.replace(/\.[^.]*$/, "");
+
+    let fr = new FileReader();
+    fr.readAsDataURL(previewfile)
+    fr.onloadend = function() {
+        node.setAttribute("src", fr.result);
+        let s = fr.result.replace(/^data:image\/(.*);base64,/, "");
+        ui.file.bytes = s;
+    }
 }
 
 async function onsubmit(e) {
     ui.submitstatus = "processing";
 
-    let [savedentry, err] = await submitentry(ui.entry);
+    let [savedfile, err] = await submitfile(ui.file);
     if (err != null) {
         console.error(err);
-        ui.submitstatus = "server error submitting entry";
+        ui.submitstatus = "server error submitting file";
         return;
     }
 
     ui.submitstatus = "";
-    ui.entry = savedentry;
-    dispatch("submit", savedentry);
+    ui.file = savedfile;
+    dispatch("submit", savedfile);
 }
 
 function oncancel(e) {
     dispatch("cancel");
 }
 
-// Returns [entry, err]
-async function findentry(entryid) {
-    let sreq = `${svcurl}/entry?id=${entryid}`;
+// Returns [file, err]
+async function findfile(fileid) {
+    let sreq = `${svcurl}/file?id=${fileid}`;
     try {
         let res = await fetch(sreq, {method: "GET"});
         if (!res.ok) {
@@ -116,55 +137,39 @@ async function findentry(entryid) {
             let s = await res.text();
             return [null, new Error(s)];
         }
-        let entry = await res.json();
-        return [entry, null];
+        let file = await res.json();
+        return [file, null];
     } catch(err) {
         return [null, err];
     }
 }
 
-// Returns [savedentry, err]
-async function submitentry(e) {
-    let sreq = `${svcurl}/entry/`;
+// Returns [savedfile, err]
+async function submitfile(f) {
+    let sreq = `${svcurl}/file/`;
     let method = "";
-    if (e.entryid == 0) {
+    if (f.fileid == 0) {
         method = "POST";
     } else {
         method = "PUT";
     }
-
     try {
         let res = await fetch(sreq, {
             method: method,
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(e),
+            body: JSON.stringify(f),
         });
         if (!res.ok) {
             let s = await res.text();
             console.error(s);
             return [null, new Error(s)];
         }
-        let savedentry = await res.json();
-        return [savedentry, null];
+        let savedfile = await res.json();
+        return [savedfile, null];
     } catch(err) {
         return [null, err];
     }
 }
-*/
 
-function onsubmit(e) {
-}
-function oncancel(e) {
-}
-function init(id) {
-}
-
-function setimgsrc(node, previewfile) {
-    let fr = new FileReader();
-    fr.readAsDataURL(previewfile)
-    fr.onloadend = function() {
-        node.setAttribute("src", fr.result);
-    }
-}
 </script>
 
