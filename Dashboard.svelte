@@ -24,7 +24,7 @@
 
         {#if ui.tabsel == "entries"}
             {#if ui.action == ""}
-                <Entries username={session.username} on:action={item_action} />
+                <Entries userid={session.userid} on:action={item_action} />
             {:else if ui.action == "edit"}
                 <EditEntry id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {:else if ui.action == "del"}
@@ -32,7 +32,7 @@
             {/if}
         {:else if ui.tabsel == "images"}
             {#if ui.action == ""}
-                <Images username={session.username} on:action={item_action} />
+                <Images userid={session.userid} on:action={item_action} />
             {:else if ui.action == "edit"}
                 <EditImage id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {:else if ui.action == "del"}
@@ -40,7 +40,7 @@
             {/if}
         {:else if ui.tabsel == "files"}
             {#if ui.action == ""}
-                <Files username={session.username} on:action={item_action} />
+                <Files userid={session.userid} on:action={item_action} />
             {:else if ui.action == "edit"}
                 <EditFile id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {:else if ui.action == "del"}

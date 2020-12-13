@@ -14,18 +14,18 @@
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
 
-export let username = "";
+export let userid = 0;
 
 let svcurl = "/api";
 let ui = {};
 ui.files = [];
 ui.status = "";
 
-init(username);
+init(userid);
 
-async function init(username) {
+async function init(userid) {
     ui.status = "";
-    let [ff, err] = await findfiles(username);
+    let [ff, err] = await findfiles(userid);
     if (err != null) {
         console.error(err);
         ui.status = "Server error while fetching files";
@@ -34,9 +34,10 @@ async function init(username) {
 }
 
 // Returns []files, error
-async function findfiles(username) {
-    let sreq = `${svcurl}/files?filetype=attachment&username=${username}`;
-    if (username == "admin") {
+async function findfiles(userid) {
+    let sreq = `${svcurl}/files?filetype=attachment&userid=${userid}`;
+    // Show all files for admin
+    if (userid == 1) {
         sreq = `${svcurl}/files?filetype=attachment`;
     }
     try {

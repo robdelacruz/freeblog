@@ -14,18 +14,18 @@
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
 
-export let username = "";
+export let userid = 0;
 
 let svcurl = "/api";
 let ui = {};
 ui.entries = [];
 ui.status = "";
 
-init(username);
+init(userid);
 
-async function init(username) {
+async function init(userid) {
     ui.status = "";
-    let [ee, err] = await findentries(username);
+    let [ee, err] = await findentries(userid);
     if (err != null) {
         console.error(err);
         ui.status = "Server error while fetching entries";
@@ -34,9 +34,10 @@ async function init(username) {
 }
 
 // Returns []entries, error
-async function findentries(username) {
-    let sreq = `${svcurl}/entries?username=${username}`;
-    if (username == "admin") {
+async function findentries(userid) {
+    let sreq = `${svcurl}/entries?userid=${userid}`;
+    // Show all entries for admin
+    if (userid == 1) {
         sreq = `${svcurl}/entries`;
     }
     try {

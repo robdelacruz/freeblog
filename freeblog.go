@@ -159,6 +159,7 @@ func createTables(newfile string) {
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
 		"CREATE TABLE entry (entry_id INTEGER PRIMARY KEY NOT NULL, title TEXT, body TEXT, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
+		"CREATE TABLE entrytag (entry_id INTEGER NOT NULL, tag TEXT NOT NULL);",
 		"CREATE TABLE file (file_id INTEGER PRIMARY KEY NOT NULL, filename TEXT, title TEXT, bytes BLOB, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
 	}
 
@@ -630,13 +631,13 @@ WHERE entry_id = ?`
 	}
 	return &e
 }
-func findEntries(db *sql.DB, qusername string, qlimit, qoffset int) ([]*Entry, error) {
+func findEntries(db *sql.DB, quserid int64, qlimit, qoffset int) ([]*Entry, error) {
 	swhere := "1 = 1"
 	var qq []interface{}
 
-	if qusername != "" {
-		swhere += " AND u.username = ?"
-		qq = append(qq, qusername)
+	if quserid != 0 {
+		swhere += " AND u.user_id = ?"
+		qq = append(qq, quserid)
 	}
 	if qlimit == 0 {
 		// Use an arbitrarily large number to indicate no limit
@@ -695,13 +696,13 @@ WHERE filename = ?`
 	}
 	return &f
 }
-func findFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]*File, error) {
+func findFiles(db *sql.DB, quserid int64, qfilename string, qlimit, qoffset int) ([]*File, error) {
 	swhere := "1 = 1"
 	var qq []interface{}
 
-	if qusername != "" {
-		swhere += " AND u.username = ?"
-		qq = append(qq, qusername)
+	if quserid != 0 {
+		swhere += " AND u.user_id = ?"
+		qq = append(qq, quserid)
 	}
 	if qfilename != "" {
 		swhere += " AND filename LIKE ?"
@@ -715,14 +716,14 @@ func findFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]
 
 	return findFilesWithParams(db, swhere, qq)
 }
-func findImageFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]*File, error) {
+func findImageFiles(db *sql.DB, quserid int64, qfilename string, qlimit, qoffset int) ([]*File, error) {
 	var qq []interface{}
 
 	swhere := "(filename LIKE '%.png' OR filename LIKE '%.jpg' OR filename LIKE '%.jpeg' OR filename LIKE '%.gif' OR filename LIKE '%.bmp' OR filename LIKE '%.tif' OR filename LIKE '%.tiff')"
 
-	if qusername != "" {
-		swhere += " AND (u.username = ?)"
-		qq = append(qq, qusername)
+	if quserid != 0 {
+		swhere += " AND u.user_id = ?"
+		qq = append(qq, quserid)
 	}
 	if qfilename != "" {
 		swhere += " AND (filename LIKE ?)"
@@ -736,14 +737,14 @@ func findImageFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int
 
 	return findFilesWithParams(db, swhere, qq)
 }
-func findAttachmentFiles(db *sql.DB, qusername, qfilename string, qlimit, qoffset int) ([]*File, error) {
+func findAttachmentFiles(db *sql.DB, quserid int64, qfilename string, qlimit, qoffset int) ([]*File, error) {
 	var qq []interface{}
 
 	swhere := "(NOT filename LIKE '%.png' AND NOT filename LIKE '%.jpg' AND NOT filename LIKE '%.jpeg' AND NOT filename LIKE '%.gif' AND NOT filename LIKE '%.bmp' AND NOT filename LIKE '%.tif' AND NOT filename LIKE '%.tiff')"
 
-	if qusername != "" {
-		swhere += " AND (u.username = ?)"
-		qq = append(qq, qusername)
+	if quserid != 0 {
+		swhere += " AND u.user_id = ?"
+		qq = append(qq, quserid)
 	}
 	if qfilename != "" {
 		swhere += " AND (filename LIKE ?)"
@@ -933,7 +934,7 @@ func printDivClose(P PrintFunc) {
 func indexHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := validateLoginCookie(db, r)
-		ee, err := findEntries(db, "", 0, 0)
+		ee, err := findEntries(db, 0, 0, 0)
 		if handleDbErr(w, err, "indexHandler") {
 			return
 		}
@@ -1453,7 +1454,7 @@ func printViewEntry(P PrintFunc, db *sql.DB, e *Entry) {
 }
 
 // GET /api/entries
-// GET /api/entries?username=rob
+// GET /api/entries?userid=2
 // GET /api/entries?limit=10
 // GET /api/entries?limit=10&offset=20
 func apientriesHandler(db *sql.DB) http.HandlerFunc {
@@ -1461,11 +1462,11 @@ func apientriesHandler(db *sql.DB) http.HandlerFunc {
 		var ee []*Entry
 		var err error
 
-		qusername := r.FormValue("username")
+		quserid := idtoi(r.FormValue("userid"))
 		qlimit := atoi(r.FormValue("limit"))
 		qoffset := atoi(r.FormValue("offset"))
 
-		ee, err = findEntries(db, qusername, qlimit, qoffset)
+		ee, err = findEntries(db, quserid, qlimit, qoffset)
 		if err != nil {
 			handleErr(w, err, "apientriesHandler")
 		}
@@ -1671,18 +1672,18 @@ func apifilesHandler(db *sql.DB) http.HandlerFunc {
 		var ff []*File
 		var err error
 
-		qusername := r.FormValue("username")
+		quserid := idtoi(r.FormValue("userid"))
 		qfilename := r.FormValue("filename")
 		qlimit := atoi(r.FormValue("limit"))
 		qoffset := atoi(r.FormValue("offset"))
 		qfiletype := r.FormValue("filetype")
 
 		if qfiletype == "image" {
-			ff, err = findImageFiles(db, qusername, qfilename, qlimit, qoffset)
+			ff, err = findImageFiles(db, quserid, qfilename, qlimit, qoffset)
 		} else if qfiletype == "attachment" {
-			ff, err = findAttachmentFiles(db, qusername, qfilename, qlimit, qoffset)
+			ff, err = findAttachmentFiles(db, quserid, qfilename, qlimit, qoffset)
 		} else {
-			ff, err = findFiles(db, qusername, qfilename, qlimit, qoffset)
+			ff, err = findFiles(db, quserid, qfilename, qlimit, qoffset)
 		}
 		if err != nil {
 			handleErr(w, err, "apifilesHandler")
