@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreeBlog</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<style>
+.myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}
+</style>
+<script defer src="bundle.js"></script>
+</head>
+<body class="bg-white text-black text-base leading-6 myfont light">
+<div id="container" class="flex flex-col py-2 mx-auto max-w-screen-lg">
+    <div class="flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm">
+        <div>
+            <h1 class="inline self-end ml-1 mr-2 font-bold"><a href="/">FreeBlog</a></h1>
+            <a href="about.html" class="self-end mr-2">About</a>
+        </div>
+        <div>
+            <div class="relative inline mr-2">
+                <a class="mr-1" href="#a">
+                    robdelacruz
+                </a>
+            </div>
+            <a href="#a" class="inline self-end mr-1">Logout</a>
+        </div>
+    </div>
+
+    <div class="flex flex-row">
+        <h1 class="flex-grow font-bold text-xl my-2 mr-2">Search</h1>
+    </div>
+    <div class="flex flex-row flex-wrap justify-start">
+
+        <div class="flex-grow 1panel py-4 px-4 mb-2 mr-2" style="flex-basis: 640px;">
+            <div class="flex flex-row mb-2">
+                <input class="flex-grow block border border-gray-500 py-1 px-4 w-full leading-5" id="search" name="search" type="text" placeholder="search entries" value="">
+                <button class="inline py-1 px-4 border-t border-r border-b border-gray-500 font-bold">Search</button>
+            </div>
+            <p class="text-gray-600 text-sm mb-2">8 results found</p>
+            <div class="p-0 bg-white">
+
+                <div class="flex flex-row py-1 px-2">
+                    <div class="flex-grow">
+                        <a class="flex-grow action text-sm text-gray-900" href="/entry?id=1">Lorem Ipsum</a>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        abc def
+                    </div>
+                </div>
+
+                <div class="flex flex-row py-1 px-2">
+                    <div class="flex-grow">
+                        <a class="flex-grow action text-sm text-gray-900" href="/entry?id=1">consectetur adipiscing elit</a>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        text1...
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="" style="flex-basis: 320px;">
+            <form class="flex flex-col panel py-2 px-4 text-sm">
+                <div class="flex flex-row justify-between mb-2">
+                    <h1 class="font-bold text-base">Tags</h1>
+                    <div class="text-sm">
+                        <div class="tablinks">
+                            <a href="#a" class="pb-1 border-b border-gray-500 mr-2 font-bold ">link 1</a>
+                            <a href="#a" class="mr-2">link 2</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-row">
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+</body>
+</html>
