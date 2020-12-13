@@ -123,6 +123,8 @@ func run(args []string) error {
 	http.HandleFunc("/login/", loginHandler(db))
 	http.HandleFunc("/logout/", logoutHandler(db))
 	http.HandleFunc("/signup/", signupHandler(db))
+	http.HandleFunc("/account/", accountHandler(db))
+	http.HandleFunc("/password/", passwordHandler(db))
 	http.HandleFunc("/dashboard/", dashboardHandler(db))
 
 	http.HandleFunc("/api/entry/", apientryHandler(db))
@@ -1137,6 +1139,95 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		printFormInputPassword(P, "pwd2", "re-enter password", f.pwd2)
 		printFormError(P, errmsg)
 		printFormSubmit(P, "Sign Up")
+		printFormLinks(P, "justify-end", "/", "Cancel")
+		printFormClose(P)
+
+		printContainerClose(P)
+		printHtmlClose(P)
+	}
+}
+
+func accountHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, _ := validateLoginCookie(db, r)
+		if u == nil {
+			http.Error(w, "Must be logged in", 401)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
+		printHeading(P, u)
+
+		printDivSmallOpen(P, escape(u.Username))
+		printDivFlex(P, "justify-start")
+		P("<div class=\"px-4\">\n")
+		P("    <a href=\"/password\" class=\"action block border-b\">Change Password</a>\n")
+		P("    <a href=\"#\" class=\"action block border-b\">Delete Account</a>\n")
+		P("</div>\n")
+		P("<div class=\"px-4\">\n")
+		P("</div>\n")
+		P("<div class=\"px-4\">\n")
+		P("</div>\n")
+		printDivClose(P)
+		printDivClose(P)
+
+		printContainerClose(P)
+		printHtmlClose(P)
+	}
+}
+
+func passwordHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, _ := validateLoginCookie(db, r)
+		if u == nil {
+			http.Error(w, "Must be logged in", 401)
+			return
+		}
+
+		var errmsg string
+		var f struct{ pwd, newpwd, newpwd2 string }
+
+		if r.Method == "POST" {
+			f.pwd = r.FormValue("pwd")
+			f.newpwd = r.FormValue("newpwd")
+			f.newpwd2 = r.FormValue("newpwd2")
+			for {
+				if f.newpwd != f.newpwd2 {
+					errmsg = "passwords don't match"
+					break
+				}
+				err := edituser(db, u.Username, f.pwd, f.newpwd)
+				if err != nil {
+					errmsg = fmt.Sprintf("%s", err)
+					break
+				}
+				u, sig, err := login(db, u.Username, f.newpwd)
+				if err != nil {
+					errmsg = fmt.Sprintf("%s", err)
+					break
+				}
+				setLoginCookie(w, u, sig)
+
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		P := makeFprintf(w)
+		printHtmlOpen(P, "FreeBlog", nil)
+		printContainerOpen(P)
+		printHeading(P, u)
+
+		printFormSmallOpen(P, "/password/", "Change Password")
+		printFormInputPassword(P, "pwd", "password", f.pwd)
+		printFormInputPassword(P, "newpwd", "new password", f.newpwd)
+		printFormInputPassword(P, "newpwd2", "re-enter password", f.newpwd2)
+		printFormError(P, errmsg)
+		printFormSubmit(P, "Submit")
 		printFormLinks(P, "justify-end", "/", "Cancel")
 		printFormClose(P)
 
