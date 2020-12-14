@@ -605,6 +605,22 @@ func deluser(db *sql.DB, username, pwd string) error {
 	}
 	return nil
 }
+func transferUserEntries(db *sql.DB, fromUserid, toUserid int64) error {
+	s := "UPDATE entry SET user_id = ? WHERE user_id = ?"
+	_, err := sqlexec(db, s, toUserid, fromUserid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func transferUserFiles(db *sql.DB, fromUserid, toUserid int64) error {
+	s := "UPDATE file SET user_id = ? WHERE user_id = ?"
+	_, err := sqlexec(db, s, toUserid, fromUserid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func findEntry(db *sql.DB, entryid int64) *Entry {
 	s := `SELECT entry_id, title, body, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
@@ -941,6 +957,8 @@ func rootHandler(db *sql.DB) http.HandlerFunc {
 			accountHandler(w, r, db)
 		} else if page == "password" {
 			passwordHandler(w, r, db)
+		} else if page == "delaccount" {
+			delaccountHandler(w, r, db)
 		} else if page == "dashboard" {
 			dashboardHandler(w, r, db)
 		}
@@ -1170,7 +1188,7 @@ func accountHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	P("<div class=\"px-0\">\n")
 	P("    <a href=\"/?page=password\" class=\"action block border-b\">Change Password</a>\n")
 	if u.Userid != 1 {
-		P("    <a href=\"#\" class=\"action block border-b\">Delete Account</a>\n")
+		P("    <a href=\"/?page=delaccount\" class=\"action block border-b\">Delete Account</a>\n")
 	}
 	P("</div>\n")
 	P("<div class=\"px-4\">\n")
@@ -1230,6 +1248,62 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormInputPassword(P, "newpwd", "new password", f.newpwd)
 	printFormInputPassword(P, "newpwd2", "re-enter password", f.newpwd2)
+	printFormError(P, errmsg)
+	printFormSubmit(P, "Submit")
+	printFormLinks(P, "justify-end", "/", "Cancel")
+	printFormClose(P)
+
+	printContainerClose(P)
+	printHtmlClose(P)
+}
+
+func delaccountHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+	if u == nil {
+		http.Error(w, "Must be logged in", 401)
+		return
+	}
+
+	var errmsg string
+	var f struct{ pwd string }
+
+	if r.Method == "POST" {
+		f.pwd = r.FormValue("pwd")
+		for {
+			// Admin takes ownership of deleted user's entries and files.
+			err := transferUserEntries(db, u.Userid, 1)
+			if err != nil {
+				errmsg = fmt.Sprintf("%s", err)
+				break
+			}
+			err = transferUserFiles(db, u.Userid, 1)
+			if err != nil {
+				errmsg = fmt.Sprintf("%s", err)
+				break
+			}
+
+			err = deluser(db, u.Username, f.pwd)
+			if err != nil {
+				errmsg = fmt.Sprintf("%s", err)
+				break
+			}
+
+			// logout
+			delLoginCookie(w)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, "FreeBlog", nil)
+	printContainerOpen(P)
+	printHeading(P, u)
+
+	//$$ Add a checkbox option to delete user's entries?
+	printFormSmallOpen(P, "/?page=delaccount", "Delete Account")
+	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormError(P, errmsg)
 	printFormSubmit(P, "Submit")
 	printFormLinks(P, "justify-end", "/", "Cancel")

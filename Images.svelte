@@ -1,9 +1,12 @@
 {#each ui.files as file}
 <div class="flex flex-row">
-    <div class="flex-grow">
+    <div class="flex-grow truncate mr-2">
         <a class="action text-sm text-gray-900" href="/?page=file&id={file.fileid}" target="_blank">{file.filename}</a>
     </div>
     <div>
+    {#if userid == 1}
+        <span class="text-xs text-gray-700 italic mr-4">{file.username}</span>
+    {/if}
         <a class="action text-xs text-gray-700 mr-2" href="#a" on:click|preventDefault='{e => dispatchAction("edit", file.fileid)}'>edit</a>
         <a class="action text-xs text-gray-700" href="#a" on:click|preventDefault='{e => dispatchAction("del", file.fileid)}'>delete</a>
     </div>
