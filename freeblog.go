@@ -912,7 +912,7 @@ func printDivOpen(P PrintFunc, heading string) {
 func printDivSmallOpen(P PrintFunc, heading string) {
 	P("<div class=\"panel mx-auto py-4 px-8 text-sm max-w-sm\">\n")
 	if heading != "" {
-		P("    <h1 class=\"font-bold mx-auto mb-2 text-center text-base\">%s</h1>\n", heading)
+		P("    <h1 class=\"font-bold mb-2 text-base\">%s</h1>\n", heading)
 	}
 }
 func printDivFlex(P PrintFunc, justify string) {
@@ -1087,7 +1087,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printContainerOpen(P)
 	printHeading(P, u)
 
-	printFormSmallOpen(P, "/?page=login/", "Log In")
+	printFormSmallOpen(P, "/?page=login", "Log In")
 	printFormInput(P, "username", "username", f.username)
 	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormError(P, errmsg)
@@ -1139,7 +1139,7 @@ func signupHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printContainerOpen(P)
 	printHeading(P, u)
 
-	printFormSmallOpen(P, "/?page=signup/", "Sign Up")
+	printFormSmallOpen(P, "/?page=signup", "Sign Up")
 	printFormInput(P, "username", "username", f.username)
 	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormInputPassword(P, "pwd2", "re-enter password", f.pwd2)
@@ -1165,11 +1165,13 @@ func accountHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printContainerOpen(P)
 	printHeading(P, u)
 
-	printDivSmallOpen(P, escape(u.Username))
+	printDivSmallOpen(P, "Account Settings")
 	printDivFlex(P, "justify-start")
-	P("<div class=\"px-4\">\n")
+	P("<div class=\"px-0\">\n")
 	P("    <a href=\"/?page=password\" class=\"action block border-b\">Change Password</a>\n")
-	P("    <a href=\"#\" class=\"action block border-b\">Delete Account</a>\n")
+	if u.Userid != 1 {
+		P("    <a href=\"#\" class=\"action block border-b\">Delete Account</a>\n")
+	}
 	P("</div>\n")
 	P("<div class=\"px-4\">\n")
 	P("</div>\n")
@@ -1224,7 +1226,7 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printContainerOpen(P)
 	printHeading(P, u)
 
-	printFormSmallOpen(P, "/?page=password/", "Change Password")
+	printFormSmallOpen(P, "/?page=password", "Change Password")
 	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormInputPassword(P, "newpwd", "new password", f.newpwd)
 	printFormInputPassword(P, "newpwd2", "re-enter password", f.newpwd2)

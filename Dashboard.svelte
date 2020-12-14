@@ -1,7 +1,7 @@
 <div class="flex flex-row">
     <h1 class="flex-grow font-bold text-xl my-2 mr-2">Dashboard</h1>
     <div class="self-center">
-        <a href="/account" class="action text-sm self-center rounded px-0 py-0 mr-2">Account</a>
+        <a href="/?page=account" class="action text-sm self-center rounded px-0 py-0 mr-2">Account</a>
     </div>
 </div>
 <div class="flex flex-row flex-wrap justify-start">
