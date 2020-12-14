@@ -15,7 +15,7 @@
             {:else}
                 <p class="inline mr-1">Editing:</p>
             {/if}
-                <a class="action font-bold text-gray-900" href="/file?id={ui.file.fileid}" target="_blank">{ui.file.filename}</a>
+            <a class="action font-bold text-gray-900" href="{ui.file.url}" target="_blank">{ui.file.filename}</a>
             </div>
             <div>
                 <button class="inline py-1 px-4 border border-gray-500 font-bold mr-2">Submit</button>

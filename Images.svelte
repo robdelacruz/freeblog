@@ -1,7 +1,7 @@
 {#each ui.files as file}
 <div class="flex flex-row">
     <div class="flex-grow">
-        <a class="action text-sm text-gray-900" href="/file?id={file.fileid}" target="_blank">{file.filename}</a>
+        <a class="action text-sm text-gray-900" href="/?page=file&id={file.fileid}" target="_blank">{file.filename}</a>
     </div>
     <div>
         <a class="action text-xs text-gray-700 mr-2" href="#a" on:click|preventDefault='{e => dispatchAction("edit", file.fileid)}'>edit</a>

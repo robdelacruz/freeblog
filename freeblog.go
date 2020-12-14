@@ -64,7 +64,7 @@ func (f *File) String() string {
 	return string(bs)
 }
 func fileurl(f *File) string {
-	return fmt.Sprintf("/file/?id=%d", f.Fileid)
+	return fmt.Sprintf("/?page=file&id=%d", f.Fileid)
 }
 
 func main() {
@@ -117,16 +117,7 @@ func run(args []string) error {
 
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/radio.ico") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	http.HandleFunc("/", indexHandler(db))
-	http.HandleFunc("/entry/", entryHandler(db))
-	http.HandleFunc("/file/", fileHandler(db))
-	http.HandleFunc("/login/", loginHandler(db))
-	http.HandleFunc("/logout/", logoutHandler(db))
-	http.HandleFunc("/signup/", signupHandler(db))
-	http.HandleFunc("/account/", accountHandler(db))
-	http.HandleFunc("/password/", passwordHandler(db))
-	http.HandleFunc("/dashboard/", dashboardHandler(db))
-
+	http.HandleFunc("/", rootHandler(db))
 	http.HandleFunc("/api/entry/", apientryHandler(db))
 	http.HandleFunc("/api/entries/", apientriesHandler(db))
 	http.HandleFunc("/api/uploadfiles/", apiuploadfilesHandler(db))
@@ -822,11 +813,11 @@ func printHeading(P PrintFunc, u *User) {
 	P("    <div>\n")
 	if u != nil {
 		P("        <div class=\"relative inline mr-2\">\n")
-		P("            <a class=\"mr-1\" href=\"/dashboard\">%s</a>\n", escape(u.Username))
+		P("            <a class=\"mr-1\" href=\"/?page=dashboard\">%s</a>\n", escape(u.Username))
 		P("        </div>\n")
-		P("        <a href=\"/logout\" class=\"inline self-end mr-1\">Logout</a>\n")
+		P("        <a href=\"/?page=logout\" class=\"inline self-end mr-1\">Logout</a>\n")
 	} else {
-		P("        <a href=\"/login\" class=\"inline self-end mr-1\">Login</a>\n")
+		P("        <a href=\"/?page=login\" class=\"inline self-end mr-1\">Login</a>\n")
 	}
 	P("    </div>\n")
 	P("</div>\n")
@@ -931,62 +922,83 @@ func printDivClose(P PrintFunc) {
 	P("</div>\n")
 }
 
-func indexHandler(db *sql.DB) http.HandlerFunc {
+func rootHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-		ee, err := findEntries(db, 0, 0, 0)
-		if handleDbErr(w, err, "indexHandler") {
-			return
+		page := r.FormValue("page")
+		if page == "index" || page == "" {
+			indexHandler(w, r, db)
+		} else if page == "entry" {
+			entryHandler(w, r, db)
+		} else if page == "file" {
+			fileHandler(w, r, db)
+		} else if page == "login" {
+			loginHandler(w, r, db)
+		} else if page == "logout" {
+			logoutHandler(w, r, db)
+		} else if page == "signup" {
+			signupHandler(w, r, db)
+		} else if page == "account" {
+			accountHandler(w, r, db)
+		} else if page == "password" {
+			passwordHandler(w, r, db)
+		} else if page == "dashboard" {
+			dashboardHandler(w, r, db)
 		}
-
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printContainerOpen(P)
-		printHeading(P, u)
-
-		P("<h1 class=\"font-bold text-lg mb-2\">Latest Posts</h1>\n")
-		for _, e := range ee {
-			P("<div class=\"flex flex-row py-1\">\n")
-			P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
-			P("    <p class=\"flex-grow px-4\">\n")
-			P("        <a class=\"action font-bold\" href=\"/entry?id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
-			P("    </p>\n")
-			P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
-			P("</div>\n")
-		}
-
-		printContainerClose(P)
-		printHtmlClose(P)
 	}
 }
 
-func entryHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-
-		qid := idtoi(r.FormValue("id"))
-		if qid == 0 {
-			http.Error(w, "Not found.", 404)
-			return
-		}
-		e := findEntry(db, qid)
-		if e == nil {
-			http.Error(w, "Not found.", 404)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printContainerOpen(P)
-		printHeading(P, u)
-
-		printEntry(P, db, e)
-
-		printContainerClose(P)
-		printHtmlClose(P)
+func indexHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+	ee, err := findEntries(db, 0, 0, 0)
+	if handleDbErr(w, err, "indexHandler") {
+		return
 	}
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, "FreeBlog", nil)
+	printContainerOpen(P)
+	printHeading(P, u)
+
+	P("<h1 class=\"font-bold text-lg mb-2\">Latest Posts</h1>\n")
+	for _, e := range ee {
+		P("<div class=\"flex flex-row py-1\">\n")
+		P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
+		P("    <p class=\"flex-grow px-4\">\n")
+		P("        <a class=\"action font-bold\" href=\"/?page=entry&id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
+		P("    </p>\n")
+		P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
+		P("</div>\n")
+	}
+
+	printContainerClose(P)
+	printHtmlClose(P)
+}
+
+func entryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+
+	qid := idtoi(r.FormValue("id"))
+	if qid == 0 {
+		http.Error(w, "Not found.", 404)
+		return
+	}
+	e := findEntry(db, qid)
+	if e == nil {
+		http.Error(w, "Not found.", 404)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, "FreeBlog", nil)
+	printContainerOpen(P)
+	printHeading(P, u)
+
+	printEntry(P, db, e)
+
+	printContainerClose(P)
+	printHtmlClose(P)
 }
 func printEntry(P PrintFunc, db *sql.DB, e *Entry) {
 	P("<h1 class=\"font-bold text-2xl mb-2\">%s</h1>\n", escape(e.Title))
@@ -1011,230 +1023,218 @@ func fileext(filename string) string {
 	return strings.ToLower(ss[len(ss)-1])
 }
 
-// GET /file?id=123
-// GET /file?filename=file1.jpg
-func fileHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		qid := idtoi(r.FormValue("id"))
-		qfilename := r.FormValue("filename")
-		if qid == 0 && qfilename == "" {
-			http.Error(w, "Specify id or filename (id=nnn or filename=file1.jpg)", 401)
-			return
-		}
-		var f *File
-		if qid > 0 {
-			f = findFile(db, qid)
-		} else if qfilename != "" {
-			f = findFileByFilename(db, qfilename)
-		}
-		if f == nil {
-			http.Error(w, "Not found.", 404)
-			return
-		}
+// GET /?page=file&id=123
+// GET /?page=file&filename=file1.jpg
+func fileHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	qid := idtoi(r.FormValue("id"))
+	qfilename := r.FormValue("filename")
+	if qid == 0 && qfilename == "" {
+		http.Error(w, "Specify id or filename (id=nnn or filename=file1.jpg)", 401)
+		return
+	}
+	var f *File
+	if qid > 0 {
+		f = findFile(db, qid)
+	} else if qfilename != "" {
+		f = findFileByFilename(db, qfilename)
+	}
+	if f == nil {
+		http.Error(w, "Not found.", 404)
+		return
+	}
 
-		ext := fileext(f.Filename)
-		if ext == "" {
-			w.Header().Set("Content-Type", "application")
-		} else if ext == "png" || ext == "gif" || ext == "bmp" {
-			w.Header().Set("Content-Type", fmt.Sprintf("image/%s", ext))
-		} else if ext == "jpg" || ext == "jpeg" {
-			w.Header().Set("Content-Type", fmt.Sprintf("image/jpeg"))
-		} else {
-			w.Header().Set("Content-Type", fmt.Sprintf("application/%s", ext))
-		}
-		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", f.Filename))
-		_, err := w.Write(f.Bytes)
-		if err != nil {
-			log.Printf("Error writing file '%s' (%s)\n", f.Filename, err)
-		}
+	ext := fileext(f.Filename)
+	if ext == "" {
+		w.Header().Set("Content-Type", "application")
+	} else if ext == "png" || ext == "gif" || ext == "bmp" {
+		w.Header().Set("Content-Type", fmt.Sprintf("image/%s", ext))
+	} else if ext == "jpg" || ext == "jpeg" {
+		w.Header().Set("Content-Type", fmt.Sprintf("image/jpeg"))
+	} else {
+		w.Header().Set("Content-Type", fmt.Sprintf("application/%s", ext))
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", f.Filename))
+	_, err := w.Write(f.Bytes)
+	if err != nil {
+		log.Printf("Error writing file '%s' (%s)\n", f.Filename, err)
 	}
 }
 
-func loginHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-		var errmsg string
-		var f struct{ username, pwd string }
+func loginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+	var errmsg string
+	var f struct{ username, pwd string }
 
-		if r.Method == "POST" {
-			f.username = r.FormValue("username")
-			f.pwd = r.FormValue("pwd")
-			for {
-				u, sig, err := login(db, f.username, f.pwd)
-				if err != nil {
-					errmsg = fmt.Sprintf("%s", err)
-					break
-				}
-				setLoginCookie(w, u, sig)
-
-				http.Redirect(w, r, "/", http.StatusSeeOther)
-				return
+	if r.Method == "POST" {
+		f.username = r.FormValue("username")
+		f.pwd = r.FormValue("pwd")
+		for {
+			u, sig, err := login(db, f.username, f.pwd)
+			if err != nil {
+				errmsg = fmt.Sprintf("%s", err)
+				break
 			}
-		}
+			setLoginCookie(w, u, sig)
 
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printContainerOpen(P)
-		printHeading(P, u)
-
-		printFormSmallOpen(P, "/login/", "Log In")
-		printFormInput(P, "username", "username", f.username)
-		printFormInputPassword(P, "pwd", "password", f.pwd)
-		printFormError(P, errmsg)
-		printFormSubmit(P, "Login")
-		printFormLinks(P, "", "/signup", "Create New Account", "/", "Cancel")
-		printFormClose(P)
-
-		printContainerClose(P)
-		printHtmlClose(P)
-	}
-}
-func logoutHandler(db *sql.DB) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		delLoginCookie(w)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-	}
-}
-func signupHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-		var errmsg string
-		var f struct{ username, pwd, pwd2 string }
-
-		if r.Method == "POST" {
-			f.username = r.FormValue("username")
-			f.pwd = r.FormValue("pwd")
-			f.pwd2 = r.FormValue("pwd2")
-			for {
-				if f.pwd != f.pwd2 {
-					errmsg = "passwords don't match"
-					break
-				}
-				err := signup(db, f.username, f.pwd)
-				if err != nil {
-					errmsg = fmt.Sprintf("%s", err)
-					break
-				}
-				u, sig, err := login(db, f.username, f.pwd)
-				if err != nil {
-					errmsg = fmt.Sprintf("%s", err)
-					break
-				}
-				setLoginCookie(w, u, sig)
-
-				http.Redirect(w, r, "/", http.StatusSeeOther)
-				return
-			}
-		}
-
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printContainerOpen(P)
-		printHeading(P, u)
-
-		printFormSmallOpen(P, "/signup/", "Sign Up")
-		printFormInput(P, "username", "username", f.username)
-		printFormInputPassword(P, "pwd", "password", f.pwd)
-		printFormInputPassword(P, "pwd2", "re-enter password", f.pwd2)
-		printFormError(P, errmsg)
-		printFormSubmit(P, "Sign Up")
-		printFormLinks(P, "justify-end", "/", "Cancel")
-		printFormClose(P)
-
-		printContainerClose(P)
-		printHtmlClose(P)
-	}
-}
-
-func accountHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-		if u == nil {
-			http.Error(w, "Must be logged in", 401)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
-
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printContainerOpen(P)
-		printHeading(P, u)
-
-		printDivSmallOpen(P, escape(u.Username))
-		printDivFlex(P, "justify-start")
-		P("<div class=\"px-4\">\n")
-		P("    <a href=\"/password\" class=\"action block border-b\">Change Password</a>\n")
-		P("    <a href=\"#\" class=\"action block border-b\">Delete Account</a>\n")
-		P("</div>\n")
-		P("<div class=\"px-4\">\n")
-		P("</div>\n")
-		P("<div class=\"px-4\">\n")
-		P("</div>\n")
-		printDivClose(P)
-		printDivClose(P)
-
-		printContainerClose(P)
-		printHtmlClose(P)
 	}
-}
 
-func passwordHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-		if u == nil {
-			http.Error(w, "Must be logged in", 401)
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, "FreeBlog", nil)
+	printContainerOpen(P)
+	printHeading(P, u)
+
+	printFormSmallOpen(P, "/?page=login/", "Log In")
+	printFormInput(P, "username", "username", f.username)
+	printFormInputPassword(P, "pwd", "password", f.pwd)
+	printFormError(P, errmsg)
+	printFormSubmit(P, "Login")
+	printFormLinks(P, "", "/?page=signup", "Create New Account", "/", "Cancel")
+	printFormClose(P)
+
+	printContainerClose(P)
+	printHtmlClose(P)
+}
+func logoutHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	delLoginCookie(w)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+func signupHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+	var errmsg string
+	var f struct{ username, pwd, pwd2 string }
+
+	if r.Method == "POST" {
+		f.username = r.FormValue("username")
+		f.pwd = r.FormValue("pwd")
+		f.pwd2 = r.FormValue("pwd2")
+		for {
+			if f.pwd != f.pwd2 {
+				errmsg = "passwords don't match"
+				break
+			}
+			err := signup(db, f.username, f.pwd)
+			if err != nil {
+				errmsg = fmt.Sprintf("%s", err)
+				break
+			}
+			u, sig, err := login(db, f.username, f.pwd)
+			if err != nil {
+				errmsg = fmt.Sprintf("%s", err)
+				break
+			}
+			setLoginCookie(w, u, sig)
+
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
-
-		var errmsg string
-		var f struct{ pwd, newpwd, newpwd2 string }
-
-		if r.Method == "POST" {
-			f.pwd = r.FormValue("pwd")
-			f.newpwd = r.FormValue("newpwd")
-			f.newpwd2 = r.FormValue("newpwd2")
-			for {
-				if f.newpwd != f.newpwd2 {
-					errmsg = "passwords don't match"
-					break
-				}
-				err := edituser(db, u.Username, f.pwd, f.newpwd)
-				if err != nil {
-					errmsg = fmt.Sprintf("%s", err)
-					break
-				}
-				u, sig, err := login(db, u.Username, f.newpwd)
-				if err != nil {
-					errmsg = fmt.Sprintf("%s", err)
-					break
-				}
-				setLoginCookie(w, u, sig)
-
-				http.Redirect(w, r, "/", http.StatusSeeOther)
-				return
-			}
-		}
-
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", nil)
-		printContainerOpen(P)
-		printHeading(P, u)
-
-		printFormSmallOpen(P, "/password/", "Change Password")
-		printFormInputPassword(P, "pwd", "password", f.pwd)
-		printFormInputPassword(P, "newpwd", "new password", f.newpwd)
-		printFormInputPassword(P, "newpwd2", "re-enter password", f.newpwd2)
-		printFormError(P, errmsg)
-		printFormSubmit(P, "Submit")
-		printFormLinks(P, "justify-end", "/", "Cancel")
-		printFormClose(P)
-
-		printContainerClose(P)
-		printHtmlClose(P)
 	}
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, "FreeBlog", nil)
+	printContainerOpen(P)
+	printHeading(P, u)
+
+	printFormSmallOpen(P, "/?page=signup/", "Sign Up")
+	printFormInput(P, "username", "username", f.username)
+	printFormInputPassword(P, "pwd", "password", f.pwd)
+	printFormInputPassword(P, "pwd2", "re-enter password", f.pwd2)
+	printFormError(P, errmsg)
+	printFormSubmit(P, "Sign Up")
+	printFormLinks(P, "justify-end", "/", "Cancel")
+	printFormClose(P)
+
+	printContainerClose(P)
+	printHtmlClose(P)
+}
+
+func accountHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+	if u == nil {
+		http.Error(w, "Must be logged in", 401)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, "FreeBlog", nil)
+	printContainerOpen(P)
+	printHeading(P, u)
+
+	printDivSmallOpen(P, escape(u.Username))
+	printDivFlex(P, "justify-start")
+	P("<div class=\"px-4\">\n")
+	P("    <a href=\"/?page=password\" class=\"action block border-b\">Change Password</a>\n")
+	P("    <a href=\"#\" class=\"action block border-b\">Delete Account</a>\n")
+	P("</div>\n")
+	P("<div class=\"px-4\">\n")
+	P("</div>\n")
+	P("<div class=\"px-4\">\n")
+	P("</div>\n")
+	printDivClose(P)
+	printDivClose(P)
+
+	printContainerClose(P)
+	printHtmlClose(P)
+}
+
+func passwordHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+	if u == nil {
+		http.Error(w, "Must be logged in", 401)
+		return
+	}
+
+	var errmsg string
+	var f struct{ pwd, newpwd, newpwd2 string }
+
+	if r.Method == "POST" {
+		f.pwd = r.FormValue("pwd")
+		f.newpwd = r.FormValue("newpwd")
+		f.newpwd2 = r.FormValue("newpwd2")
+		for {
+			if f.newpwd != f.newpwd2 {
+				errmsg = "passwords don't match"
+				break
+			}
+			err := edituser(db, u.Username, f.pwd, f.newpwd)
+			if err != nil {
+				errmsg = fmt.Sprintf("%s", err)
+				break
+			}
+			u, sig, err := login(db, u.Username, f.newpwd)
+			if err != nil {
+				errmsg = fmt.Sprintf("%s", err)
+				break
+			}
+			setLoginCookie(w, u, sig)
+
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, "FreeBlog", nil)
+	printContainerOpen(P)
+	printHeading(P, u)
+
+	printFormSmallOpen(P, "/?page=password/", "Change Password")
+	printFormInputPassword(P, "pwd", "password", f.pwd)
+	printFormInputPassword(P, "newpwd", "new password", f.newpwd)
+	printFormInputPassword(P, "newpwd2", "re-enter password", f.newpwd2)
+	printFormError(P, errmsg)
+	printFormSubmit(P, "Submit")
+	printFormLinks(P, "justify-end", "/", "Cancel")
+	printFormClose(P)
+
+	printContainerClose(P)
+	printHtmlClose(P)
 }
 
 func createEntry(db *sql.DB, e *Entry) (int64, error) {
@@ -1297,23 +1297,21 @@ func delFile(db *sql.DB, fileid int64) error {
 	return nil
 }
 
-func dashboardHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, _ := validateLoginCookie(db, r)
-		if u == nil {
-			http.Error(w, "Must be logged in", 401)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/html")
-		P := makeFprintf(w)
-		printHtmlOpen(P, "FreeBlog", []string{"/static/bundle.js", "/static/dashboard.js"})
-		printWideContainerOpen(P)
-		printHeading(P, u)
-
-		printContainerClose(P)
-		printHtmlClose(P)
+func dashboardHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+	if u == nil {
+		http.Error(w, "Must be logged in", 401)
+		return
 	}
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, "FreeBlog", []string{"/static/bundle.js", "/static/dashboard.js"})
+	printWideContainerOpen(P)
+	printHeading(P, u)
+
+	printContainerClose(P)
+	printHtmlClose(P)
 }
 
 // GET /api/entry?id=123
