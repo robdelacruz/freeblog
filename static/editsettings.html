@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreeBlog</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<style>
+.myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}
+</style>
+<script defer src="bundle.js"></script>
+</head>
+<body class="bg-white text-black text-base leading-6 myfont light">
+<div id="container" class="flex flex-col py-2 mx-auto max-w-screen-lg">
+    <div class="flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm">
+        <div>
+            <h1 class="inline self-end ml-1 mr-2 font-bold"><a href="/">FreeBlog</a></h1>
+            <a href="about.html" class="self-end mr-2">About</a>
+        </div>
+        <div>
+            <div class="relative inline mr-2">
+                <a class="mr-1" href="#a">
+                    robdelacruz
+                </a>
+            </div>
+            <a href="#a" class="inline self-end mr-1">Logout</a>
+        </div>
+    </div>
+
+    <div class="flex flex-row">
+        <h1 class="flex-grow font-bold text-xl my-2 mr-2">Dashboard</h1>
+        <div class="self-center text-xs">
+            <a href="#" class="action text-sm self-center rounded px-0 py-0 mr-2">Settings</a>
+            <a href="#" class="action text-sm self-center rounded px-0 py-0">Account</a>
+        </div>
+    </div>
+    <div class="flex flex-row flex-wrap justify-start">
+
+        <div class="flex-grow panel py-2 px-4 mb-2 mr-2" style="flex-basis: 640px;">
+            <form class="flex-grow flex flex-col mx-auto px-4 text-sm h-85vh">
+                <div class="flex flex-row py-1">
+                    <div class="flex-grow">
+                        <p class="inline mr-1">Editing:</p>
+                        <span class="action font-bold text-gray-900">Settings</span>
+                    </div>
+                    <div>
+                        <button class="inline py-1 px-4 border border-gray-500 font-bold mr-2">Submit</button>
+                        <a class="action text-xs text-gray-700" href="#a">Cancel</a>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="block font-bold uppercase text-xs" for="blogname">blog name</label>
+                    <input class="block border border-gray-500 py-1 px-4 w-full" id="blogname" name="blogname" type="text" value="Easy Blog">
+                </div>
+                <div class="flex-grow flex flex-col mb-4">
+                    <label class="block font-bold uppercase text-xs" for="title">about description</label>
+                    <textarea class="flex-grow block border border-gray-500 py-1 px-4 w-full leading-5" id="blogdesc" name="blogdesc"></textarea>
+                </div>
+                <div class="flex flex-row items-center mb-4">
+                    <input class="mr-2" id="peruser" name="peruser" type="checkbox" value="0" checked>
+                    <label class="font-bold uppercase text-xs" for="peruser">group blog</label>
+                </div>
+                <div class="mb-2">
+                    <p class="font-bold uppercase text-xs">Server error while updating settings</p>
+                </div>
+                <div class="mb-2">
+                        <button class="inline w-full mx-auto py-1 px-2 border border-gray-500 font-bold mr-2">Submit</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="" style="flex-basis: 320px;">
+        </div>
+    </div>
+</div>
+</body>
+</html>
