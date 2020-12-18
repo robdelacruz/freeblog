@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreeBlog</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<style>
+.myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}
+</style>
+<script defer src="bundle.js"></script>
+</head>
+<body class="bg-white text-black text-base leading-6 myfont light">
+<div id="container" class="flex flex-col py-2 mx-auto max-w-screen-lg">
+    <div class="flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm">
+        <div>
+            <h1 class="inline self-end ml-1 mr-2 font-bold"><a href="/">FreeBlog</a></h1>
+            <a href="about.html" class="self-end mr-2">About</a>
+        </div>
+        <div>
+            <div class="relative inline mr-2">
+                <a class="mr-1" href="#a">
+                    robdelacruz
+                </a>
+            </div>
+            <a href="#a" class="inline self-end mr-1">Logout</a>
+        </div>
+    </div>
+
+    <div class="flex flex-row">
+        <h1 class="flex-grow font-bold text-xl my-2 mr-2">Dashboard</h1>
+        <div class="self-center text-xs">
+            <a href="#" class="action text-sm self-center rounded px-0 py-0 mr-2">Settings</a>
+            <a href="#" class="action text-sm self-center rounded px-0 py-0">Account</a>
+        </div>
+    </div>
+    <div class="flex flex-row flex-wrap justify-start">
+
+        <div class="flex-grow panel py-2 px-4 mb-2 mr-2" style="flex-basis: 640px;">
+            <div class="flex flex-row justify-between mb-4 text-sm">
+                <div class="tablinks">
+                    <a href="#a" class="mr-2">Entries</a>
+                    <a href="#a" class="mr-2">Images</a>
+                    <a href="#a" class="mr-2">Files</a>
+                    <a href="#a" class="pb-1 border-b border-gray-500 mr-2 font-bold ">Account</a>
+                </div>
+                <div>
+                </div>
+            </div>
+            <div class="flex flex-row py-1">
+                <div class="flex-grow">
+                    <a class="action text-sm text-gray-900" href="/entry?id=1">Blog Settings</a>
+                </div>
+                <div>
+                </div>
+            </div>
+            <div class="flex flex-row py-1">
+                <p class="flex-grow">
+                    <a class="action text-sm text-gray-900" href="/entry?id=1">Change Password</a>
+                </p>
+                <div>
+                </div>
+            </div>
+            <div class="flex flex-row py-1">
+                <p class="flex-grow">
+                    <a class="action text-sm text-gray-900" href="/entry?id=1">Deactivate Account</a>
+                </p>
+                <div>
+                </div>
+            </div>
+        </div>
+
+        <div class="" style="flex-basis: 320px;">
+            <form class="flex flex-col panel py-2 px-4 text-sm">
+                <div class="flex flex-row justify-between mb-2">
+                    <h1 class="font-bold text-base">Search</h1>
+                    <div class="text-sm">
+                        <div class="tablinks">
+                            <a href="#a" class="pb-1 border-b border-gray-500 mr-2 font-bold ">Images</a>
+                            <a href="#a" class="mr-2">Files</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="search" name="search" type="text" value="">
+                </div>
+                <div class="mb-2">
+                    <p class="uppercase italic text-xs">Processing...</p>
+                </div>
+                <div class="mb-2">
+                    <p class="font-bold uppercase text-xs">Server error: unable to retrieve files</p>
+                </div>
+                <div class="flex flex-row flex-wrap mb-2 justify-start">
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="lky.png">
+                        <p class="text-xs">lky.png</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="sheep_vote.jpeg">
+                        <p class="text-xs">sheep_vote.jpeg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="buster2.jpg">
+                        <p class="text-xs">buster2.jpg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="lucy_youngcage.jpg">
+                        <p class="text-xs">lucy_youngcage.jpg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="small_lucy_ref.png">
+                        <p class="text-xs">small_lucy_ref.png</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="floppy-disk_emoji.png">
+                        <p class="text-xs">floppy-disk_emoji.png</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="lky_remembered.jpg">
+                        <p class="text-xs">lky_remembered.jpg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="wewokeuplikethis.jpg">
+                        <p class="text-xs">wewokeuplikethis.jpg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="wednesday_coffee.jpg">
+                        <p class="text-xs">wednesday_coffee.jpg</p>
+                    </div>
+                </div>
+            </form>
+
+            <form class="flex flex-col panel py-2 px-4 text-sm mb-2">
+                <h1 class="font-bold mb-1 text-base">Upload Files</h1>
+                <div class="mb-2">
+                    <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="images" name="images" type="file" multiple>
+                </div>
+                <div class="flex flex-row flex-wrap mb-2 justify-start">
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" alt="pic" src="lky.png">
+                        <p class="text-xs">lky.png</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="sheep_vote.jpeg">
+                        <p class="text-xs">sheep_vote.jpeg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="buster2.jpg">
+                        <p class="text-xs">buster2.jpg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20" src="lucy_youngcage.jpg">
+                        <p class="text-xs">lucy_youngcage.jpg</p>
+                    </div>
+                    <div class="flex flex-col items-center border px-1 pt-1">
+                        <img class="w-20 h-20 border p-2" src="wewokeuplikethis.jpg">
+                        <p class="text-xs">wewokeuplikethis.jpg</p>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <p class="uppercase italic text-xs">Processing...</p>
+                </div>
+                <div class="mb-2">
+                    <p class="font-bold uppercase text-xs">Server error uploading files</p>
+                </div>
+                <div class="flex flex-row justify-center mb-2 justify-center">
+                        <button class="inline w-full py-1 px-2 border border-gray-500 font-bold">Upload</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+</body>
+</html>

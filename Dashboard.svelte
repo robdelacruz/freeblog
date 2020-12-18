@@ -9,7 +9,7 @@
         <div class="panel py-2 px-4 mb-2 h-full">
         {#if ui.action == ""}
             <div class="flex flex-row justify-between mb-4 text-sm">
-                <Tablinks links="entries|Entries;images|Images;files|Files" bind:sel={ui.tabsel} />
+                <Tablinks links="entries|Entries;images|Images;files|Files;account|Account" bind:sel={ui.tabsel} />
                 <div>
                 {#if ui.tabsel == "entries"}
                     <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click={onadditem}>Add Entry</a>
@@ -46,6 +46,20 @@
             {:else if ui.action == "del"}
                 <DelFile id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {/if}
+        {:else if ui.tabsel == "account"}
+            {#if ui.action == ""}
+                <AccountMenu on:action={item_action} />
+<!--
+            {:else if ui.action == "blogsettings"}
+                <EditBlogSettings id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
+-->
+            {:else if ui.action == "password"}
+                <ChangePassword on:submit={clearaction} on:cancel={clearaction}/>
+<!--
+            {:else if ui.action == "deactivate"}
+                <DeactivateAccount id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
+-->
+            {/if}
         {/if}
         </div>
     </div>
@@ -71,6 +85,10 @@ import DelImage from "./DelImage.svelte";
 import Files from "./Files.svelte";
 import EditFile from "./EditFile.svelte";
 import DelFile from "./DelFile.svelte";
+import AccountMenu from "./AccountMenu.svelte";
+//import EditBlogSettings from "./EditBlogSettings.svelte";
+import ChangePassword from "./ChangePassword.svelte";
+//import DeactivateAccount from "./DeactivateAccount.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
 

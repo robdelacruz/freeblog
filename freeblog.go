@@ -26,9 +26,9 @@ import (
 type PrintFunc func(format string, a ...interface{}) (n int, err error)
 
 type User struct {
-	Userid    int64
-	Username  string
-	HashedPwd string
+	Userid    int64  `json:"userid"`
+	Username  string `json:"username"`
+	HashedPwd string `json:"hashedpwd"`
 }
 type Entry struct {
 	Entryid  int64  `json:"entryid"`
@@ -118,6 +118,7 @@ func run(args []string) error {
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/radio.ico") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/", rootHandler(db))
+	http.HandleFunc("/api/changepwd/", apichangepwdHandler(db))
 	http.HandleFunc("/api/entry/", apientryHandler(db))
 	http.HandleFunc("/api/entries/", apientriesHandler(db))
 	http.HandleFunc("/api/uploadfiles/", apiuploadfilesHandler(db))
@@ -539,24 +540,35 @@ func validateApiUser(db *sql.DB, r *http.Request) *User {
 
 var ErrLoginIncorrect = errors.New("Incorrect username or password")
 
-func login(db *sql.DB, username, pwd string) (*User, string, error) {
-	var u User
-	s := "SELECT user_id, username, password FROM user WHERE username = ?"
-	row := db.QueryRow(s, username)
-	err := row.Scan(&u.Userid, &u.Username, &u.HashedPwd)
-	if err == sql.ErrNoRows {
+func loginUserid(db *sql.DB, userid int64, pwd string) (*User, string, error) {
+	u := findUserById(db, userid)
+	if u == nil {
 		return nil, "", ErrLoginIncorrect
 	}
+	sig, err := login(u, pwd)
 	if err != nil {
 		return nil, "", err
 	}
-	if !validateHash(u.HashedPwd, pwd) {
+	return u, sig, nil
+}
+func loginUsername(db *sql.DB, username, pwd string) (*User, string, error) {
+	u := findUserByUsername(db, username)
+	if u == nil {
 		return nil, "", ErrLoginIncorrect
 	}
-
+	sig, err := login(u, pwd)
+	if err != nil {
+		return nil, "", err
+	}
+	return u, sig, nil
+}
+func login(u *User, pwd string) (string, error) {
+	if !validateHash(u.HashedPwd, pwd) {
+		return "", ErrLoginIncorrect
+	}
 	// Return user signature, this will be used to authenticate user per request.
-	sig := genSig(&u)
-	return &u, sig, nil
+	sig := genSig(u)
+	return sig, nil
 }
 
 func signup(db *sql.DB, username, pwd string) error {
@@ -573,33 +585,33 @@ func signup(db *sql.DB, username, pwd string) error {
 	return nil
 }
 
-func edituser(db *sql.DB, username, pwd string, newpwd string) error {
+func edituser(db *sql.DB, userid int64, pwd string, newpwd string) error {
 	// Validate existing password
-	_, _, err := login(db, username, pwd)
+	_, _, err := loginUserid(db, userid, pwd)
 	if err != nil {
 		return err
 	}
 
 	// Set new password
 	hashedPwd := genHash(newpwd)
-	s := "UPDATE user SET password = ? WHERE username = ?"
-	_, err = sqlexec(db, s, hashedPwd, username)
+	s := "UPDATE user SET password = ? WHERE user_id = ?"
+	_, err = sqlexec(db, s, hashedPwd, userid)
 	if err != nil {
 		return fmt.Errorf("DB error updating user password: %s", err)
 	}
 	return nil
 }
 
-func deluser(db *sql.DB, username, pwd string) error {
+func deluser(db *sql.DB, userid int64, pwd string) error {
 	// Validate existing password
-	_, _, err := login(db, username, pwd)
+	_, _, err := loginUserid(db, userid, pwd)
 	if err != nil {
 		return err
 	}
 
 	// Delete user
-	s := "DELETE FROM user WHERE username = ?"
-	_, err = sqlexec(db, s, username)
+	s := "DELETE FROM user WHERE user_id = ?"
+	_, err = sqlexec(db, s, userid)
 	if err != nil {
 		return fmt.Errorf("DB error deleting user: %s", err)
 	}
@@ -1087,7 +1099,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		f.username = r.FormValue("username")
 		f.pwd = r.FormValue("pwd")
 		for {
-			u, sig, err := login(db, f.username, f.pwd)
+			u, sig, err := loginUsername(db, f.username, f.pwd)
 			if err != nil {
 				errmsg = fmt.Sprintf("%s", err)
 				break
@@ -1139,7 +1151,7 @@ func signupHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				errmsg = fmt.Sprintf("%s", err)
 				break
 			}
-			u, sig, err := login(db, f.username, f.pwd)
+			u, sig, err := loginUsername(db, f.username, f.pwd)
 			if err != nil {
 				errmsg = fmt.Sprintf("%s", err)
 				break
@@ -1221,12 +1233,12 @@ func passwordHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				errmsg = "passwords don't match"
 				break
 			}
-			err := edituser(db, u.Username, f.pwd, f.newpwd)
+			err := edituser(db, u.Userid, f.pwd, f.newpwd)
 			if err != nil {
 				errmsg = fmt.Sprintf("%s", err)
 				break
 			}
-			u, sig, err := login(db, u.Username, f.newpwd)
+			u, sig, err := loginUserid(db, u.Userid, f.newpwd)
 			if err != nil {
 				errmsg = fmt.Sprintf("%s", err)
 				break
@@ -1282,7 +1294,7 @@ func delaccountHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				break
 			}
 
-			err = deluser(db, u.Username, f.pwd)
+			err = deluser(db, u.Userid, f.pwd)
 			if err != nil {
 				errmsg = fmt.Sprintf("%s", err)
 				break
@@ -1388,6 +1400,46 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	printContainerClose(P)
 	printHtmlClose(P)
+}
+
+func apichangepwdHandler(db *sql.DB) http.HandlerFunc {
+	type Req struct {
+		Userid int64  `json:"userid"`
+		Pwd    string `json:"pwd"`
+		Newpwd string `json:"newpwd"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST method", 401)
+			return
+		}
+
+		u := validateApiUser(db, r)
+		if u == nil {
+			http.Error(w, "Invalid user", 401)
+			return
+		}
+		bs, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			handleErr(w, err, "POST apichangepwdHandler")
+			return
+		}
+		var req Req
+		err = json.Unmarshal(bs, &req)
+		if err != nil {
+			handleErr(w, err, "POST apichangepwdHandler")
+			return
+		}
+		if u.Userid != 1 && req.Userid != u.Userid {
+			http.Error(w, "Not authorized", 401)
+			return
+		}
+		err = edituser(db, req.Userid, req.Pwd, req.Newpwd)
+		if err != nil {
+			handleErr(w, err, "POST apichangepwdHandler")
+			return
+		}
+	}
 }
 
 // GET /api/entry?id=123
