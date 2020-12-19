@@ -53,12 +53,10 @@
             {:else if ui.action == "blogsettings"}
                 <EditBlogSettings id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
 -->
-            {:else if ui.action == "password"}
+            {:else if ui.action == "changepwd"}
                 <ChangePassword on:submit={clearaction} on:cancel={clearaction}/>
-<!--
-            {:else if ui.action == "deactivate"}
-                <DeactivateAccount id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
--->
+            {:else if ui.action == "deluser"}
+                <DelUser id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
             {/if}
         {/if}
         </div>
@@ -88,7 +86,7 @@ import DelFile from "./DelFile.svelte";
 import AccountMenu from "./AccountMenu.svelte";
 //import EditBlogSettings from "./EditBlogSettings.svelte";
 import ChangePassword from "./ChangePassword.svelte";
-//import DeactivateAccount from "./DeactivateAccount.svelte";
+import DelUser from "./DelUser.svelte";
 import UploadImages from "./UploadImages.svelte";
 import SearchImages from "./SearchImages.svelte";
 

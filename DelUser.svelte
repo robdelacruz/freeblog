@@ -1,24 +1,17 @@
 <form class="flex-grow flex flex-col mx-auto px-4 text-sm h-85vh" on:submit|preventDefault={onsubmit}>
     <div class="flex flex-row py-1">
         <div class="flex-grow">
-            <p class="inline mr-1">Change Password:</p>
+            <p class="inline mr-1">Delete Account:</p>
+            <span class="action font-bold text-gray-900">{session.username}</span>
         </div>
         <div>
-            <button class="inline py-1 px-4 border border-gray-500 font-bold mr-2">Submit</button>
+            <button class="inline py-1 px-4 border border-gray-500 font-bold mr-2">Delete Account</button>
             <a class="action text-xs text-gray-700" href="#a" on:click|preventDefault={oncancel}>Cancel</a>
         </div>
     </div>
     <div class="mb-2">
         <label class="block font-bold uppercase text-xs" for="pwd">password</label>
         <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="pwd" name="pwd" type="password" bind:value={ui.pwd}>
-    </div>
-    <div class="mb-2">
-        <label class="block font-bold uppercase text-xs" for="newpwd">new password</label>
-        <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="newpwd" name="newpwd" type="password" bind:value={ui.newpwd}>
-    </div>
-    <div class="mb-2">
-        <label class="block font-bold uppercase text-xs" for="newpwd2">re-enter password</label>
-        <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="newpwd2" name="newpwd2" type="password" bind:value={ui.newpwd2}>
     </div>
 {#if ui.submitstatus != ""}
     <div class="mb-2">
@@ -32,7 +25,7 @@ import {currentSession, initPopupHandlers} from "./helpers.js";
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
 
-let svcurl = "/api";
+let svcurl = "/api/deluser";
 let session = currentSession();
 let ui = {};
 ui.pwd = "";
@@ -42,46 +35,28 @@ ui.newpwd2 = "";
 ui.submitstatus = "";
 
 async function onsubmit(e) {
-    if (ui.newpwd != ui.newpwd2) {
-        ui.submitstatus = "passwords don't match";
-        return;
-    }
     ui.submitstatus = "processing";
 
     let req = {
         userid: session.userid,
         pwd: ui.pwd,
-        newpwd: ui.newpwd,
     };
-    let err = await changepwd(req);
+    let err = await deluser(req);
     if (err != null) {
         console.error(err);
         if (err.status == 401) {
             ui.submitstatus = err.message;
             return;
         }
-        ui.submitstatus = "server error on password change";
+        ui.submitstatus = "server error while deleting account";
         return;
     }
-
-    req = {
-        userid: session.userid,
-        pwd: ui.newpwd,
-    };
-    let [resp, err2] = await login(req);
-    if (err2 != null) {
-        console.error(err2);
-        if (err2.status == 401) {
-            ui.submitstatus = err2.message;
-            return;
-        }
-        ui.submitstatus = "server error while trying to re-login";
-        return;
-    }
-    session = currentSession();
 
     ui.submitstatus = "";
     dispatch("submit");
+
+    await logout();
+    window.location.replace("/");
 }
 
 function oncancel(e) {
@@ -89,8 +64,8 @@ function oncancel(e) {
 }
 
 // Returns err
-async function changepwd(req) {
-    let sreq = `${svcurl}/changepwd/`;
+async function deluser(req) {
+    let sreq = `${svcurl}/deluser/`;
     try {
         let res = await fetch(sreq, {
             method: "POST",
@@ -108,27 +83,22 @@ async function changepwd(req) {
         return err;
     }
 }
-
-// Returns [{userid, sig}, err]
-async function login(req) {
-    let sreq = `${svcurl}/login/`;
+// Returns err
+async function logout() {
+    let sreq = `${svcurl}/logout/`;
     try {
-        let res = await fetch(sreq, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(req),
-        });
+        let res = await fetch(sreq, {method: "GET"});
         if (!res.ok) {
             let s = await res.text();
             let err = new Error(s);
             err.status = res.status;
-            return [null, err];
+            return err;
         }
-        let resp = await res.json();
-        return [resp, null];
+        return null;
     } catch(err) {
-        return [null, err];
+        return null;
     }
 }
 </script>
+
 

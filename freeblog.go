@@ -118,12 +118,16 @@ func run(args []string) error {
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/radio.ico") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/", rootHandler(db))
-	http.HandleFunc("/api/changepwd/", apichangepwdHandler(db))
 	http.HandleFunc("/api/entry/", apientryHandler(db))
 	http.HandleFunc("/api/entries/", apientriesHandler(db))
 	http.HandleFunc("/api/uploadfiles/", apiuploadfilesHandler(db))
 	http.HandleFunc("/api/file/", apifileHandler(db))
 	http.HandleFunc("/api/files/", apifilesHandler(db))
+
+	http.HandleFunc("/api/changepwd/", apichangepwdHandler(db))
+	http.HandleFunc("/api/deluser/", apideluserHandler(db))
+	http.HandleFunc("/api/login/", apiloginHandler(db))
+	http.HandleFunc("/api/logout/", apilogoutHandler(db))
 
 	port := "8000"
 	if len(parms) > 1 {
@@ -1435,10 +1439,128 @@ func apichangepwdHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		err = edituser(db, req.Userid, req.Pwd, req.Newpwd)
+		if err == ErrLoginIncorrect {
+			http.Error(w, err.Error(), 401)
+			return
+		}
 		if err != nil {
 			handleErr(w, err, "POST apichangepwdHandler")
 			return
 		}
+	}
+}
+
+func apideluserHandler(db *sql.DB) http.HandlerFunc {
+	type Req struct {
+		Userid int64  `json:"userid"`
+		Pwd    string `json:"pwd"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST method", 401)
+			return
+		}
+
+		u := validateApiUser(db, r)
+		if u == nil {
+			http.Error(w, "Invalid user", 401)
+			return
+		}
+		bs, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			handleErr(w, err, "POST apideluserHandler")
+			return
+		}
+		var req Req
+		err = json.Unmarshal(bs, &req)
+		if err != nil {
+			handleErr(w, err, "POST apideluserHandler")
+			return
+		}
+		if u.Userid != 1 && req.Userid != u.Userid {
+			http.Error(w, "Not authorized", 401)
+			return
+		}
+
+		err = deluser(db, req.Userid, req.Pwd)
+		if err == ErrLoginIncorrect {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+		if err != nil {
+			handleErr(w, err, "POST apideluserHandler")
+			return
+		}
+		// Admin takes ownership of deleted user's entries and files.
+		err = transferUserEntries(db, req.Userid, 1)
+		if err != nil {
+			handleErr(w, err, "POST apideluserHandler")
+			return
+		}
+		err = transferUserFiles(db, req.Userid, 1)
+		if err != nil {
+			handleErr(w, err, "POST apideluserHandler")
+			return
+		}
+	}
+}
+
+func apiloginHandler(db *sql.DB) http.HandlerFunc {
+	type Req struct {
+		Userid int64  `json:"userid"`
+		Pwd    string `json:"pwd"`
+	}
+	type Resp struct {
+		Userid int64  `json:"userid"`
+		Sig    string `json:"sig"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST method", 401)
+			return
+		}
+
+		bs, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			handleErr(w, err, "POST apiloginHandler")
+			return
+		}
+		var req Req
+		err = json.Unmarshal(bs, &req)
+		if err != nil {
+			handleErr(w, err, "POST apiloginHandler")
+			return
+		}
+
+		u, sig, err := loginUserid(db, req.Userid, req.Pwd)
+		if err == ErrLoginIncorrect {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+		if err != nil {
+			handleErr(w, err, "POST apiloginHandler")
+			return
+		}
+		setLoginCookie(w, u, sig)
+
+		var resp Resp
+		resp.Userid = u.Userid
+		resp.Sig = sig
+
+		bs, err = json.MarshalIndent(resp, "", "\t")
+		if err != nil {
+			handleErr(w, err, "POST apiloginHandler")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		P := makeFprintf(w)
+		P("%s", string(bs))
+	}
+}
+
+func apilogoutHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		delLoginCookie(w)
 	}
 }
 
