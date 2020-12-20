@@ -7,7 +7,7 @@
         <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click|preventDefault={oncancel}>Cancel</a>
     </div>
 {:else}
-    <form class="flex-grow flex flex-col mx-auto px-4 text-sm h-85vh" on:submit|preventDefault={onsubmit}>
+    <form class="flex-grow flex flex-col mx-auto px-4 text-sm h-80vh" on:submit|preventDefault={onsubmit}>
         <div class="flex flex-row py-1">
             <div class="flex-grow">
             {#if id == 0}
@@ -39,9 +39,6 @@
             <p class="uppercase italic text-xs">{ui.submitstatus}</p>
         </div>
     {/if}
-        <div class="flex flex-row justify-center mb-2 justify-center">
-                <button class="inline w-full py-1 px-2 border border-gray-500 font-bold">Submit</button>
-        </div>
     </form>
 {/if}
 

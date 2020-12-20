@@ -37,7 +37,7 @@
     <div class="flex flex-row flex-wrap justify-start">
 
         <div class="flex-grow panel py-2 px-4 mb-2 mr-2" style="flex-basis: 640px;">
-            <form class="flex-grow flex flex-col mx-auto px-4 text-sm h-85vh">
+            <form class="flex-grow flex flex-col mx-auto px-4 text-sm">
                 <div class="flex flex-row py-1">
                     <div class="flex-grow">
                         <p class="inline mr-1">Editing:</p>
@@ -56,15 +56,12 @@
                     <input class="mr-2" id="peruser" name="peruser" type="checkbox" value="0" checked>
                     <label class="font-bold uppercase text-xs" for="peruser">group blog</label>
                 </div>
-                <div class="flex-grow flex flex-col mb-2">
+                <div class="mb-2">
                     <label class="block font-bold uppercase text-xs" for="title">about description</label>
-                    <textarea class="flex-grow block border border-gray-500 py-1 px-4 w-full leading-5" id="blogdesc" name="blogdesc"></textarea>
+                    <textarea class="block border border-gray-500 py-1 px-4 w-full leading-5" id="blogdesc" name="blogdesc" rows="5"></textarea>
                 </div>
                 <div class="mb-2">
                     <p class="font-bold uppercase text-xs">Server error while updating settings</p>
-                </div>
-                <div class="mb-2">
-                        <button class="inline w-full mx-auto py-1 px-2 border border-gray-500 font-bold mr-2">Submit</button>
                 </div>
             </form>
         </div>

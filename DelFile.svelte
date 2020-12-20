@@ -7,7 +7,7 @@
         <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click|preventDefault={oncancel}>Cancel</a>
     </div>
 {:else}
-    <form class="flex-grow flex flex-col mx-auto px-4 text-sm h-85vh" on:submit|preventDefault={onsubmit}>
+    <form class="flex-grow flex flex-col mx-auto px-4 text-sm" on:submit|preventDefault={onsubmit}>
         <div class="flex flex-row py-1 mb-2">
             <div class="flex-grow">
                 <p class="inline mr-1">Deleting File:</p>
@@ -19,7 +19,7 @@
             </div>
         </div>
         <div class="mb-2">
-            <p class="action text-xs">{ui.file.filename}</p>
+            <a class="action text-xs" href="{ui.file.url}" target="_blank">{ui.file.filename}</a>
         </div>
     {#if ui.submitstatus != ""}
         <div class="mb-2">

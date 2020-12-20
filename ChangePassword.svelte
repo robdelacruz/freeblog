@@ -1,4 +1,4 @@
-<form class="flex-grow flex flex-col mx-auto px-4 text-sm h-85vh" on:submit|preventDefault={onsubmit}>
+<form class="flex-grow flex flex-col mx-auto px-4 text-sm" on:submit|preventDefault={onsubmit}>
     <div class="flex flex-row py-1">
         <div class="flex-grow">
             <p class="inline mr-1">Change Password:</p>

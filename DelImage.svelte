@@ -7,7 +7,7 @@
         <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click|preventDefault={oncancel}>Cancel</a>
     </div>
 {:else}
-    <form class="flex-grow flex flex-col mx-auto px-4 text-sm h-85vh" on:submit|preventDefault={onsubmit}>
+    <form class="flex-grow flex flex-col mx-auto px-4 text-sm" on:submit|preventDefault={onsubmit}>
         <div class="flex flex-row py-1 mb-2">
             <div class="flex-grow">
                 <p class="inline mr-1">Deleting Image:</p>
