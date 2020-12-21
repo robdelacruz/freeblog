@@ -152,7 +152,9 @@ func createTables(newfile string) {
 	}
 
 	ss := []string{
+		"CREATE TABLE sitesettings (sitetitle TEXT, siteabout TEXT, sitetype INTEGER);",
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
+		"CREATE TABLE usersettings (user_id INTEGER PRIMARY KEY NOT NULL, blogtitle TEXT, blogabout TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
 		"CREATE TABLE entry (entry_id INTEGER PRIMARY KEY NOT NULL, title TEXT, body TEXT, createdt TEXT NOT NULL, user_id INTEGER NOT NULL);",
 		"CREATE TABLE entrytag (entry_id INTEGER NOT NULL, tag TEXT NOT NULL);",
