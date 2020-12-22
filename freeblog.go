@@ -48,16 +48,19 @@ type File struct {
 	Userid   int64  `json:"userid"`
 	Username string `json:"username"`
 }
-
-func (e *Entry) String() string {
-	bs, err := json.MarshalIndent(e, "", "\t")
-	if err != nil {
-		return ""
-	}
-	return string(bs)
+type Site struct {
+	Title    string `json:"title"`
+	About    string `json:"about"`
+	BlogType string `json:"blogtype"`
 }
-func (f *File) String() string {
-	bs, err := json.MarshalIndent(f, "", "\t")
+type UserSettings struct {
+	Userid    int64  `json:"userid"`
+	BlogTitle string `json:"blogtitle"`
+	BlogAbout string `json:"blogabout"`
+}
+
+func jsonstr(v interface{}) string {
+	bs, err := json.MarshalIndent(v, "", "\t")
 	if err != nil {
 		return ""
 	}
@@ -152,7 +155,7 @@ func createTables(newfile string) {
 	}
 
 	ss := []string{
-		"CREATE TABLE sitesettings (sitetitle TEXT, siteabout TEXT, sitetype INTEGER);",
+		"CREATE TABLE site (title TEXT, about TEXT, blogtype INTEGER);",
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"CREATE TABLE usersettings (user_id INTEGER PRIMARY KEY NOT NULL, blogtitle TEXT, blogabout TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
@@ -1549,14 +1552,9 @@ func apiloginHandler(db *sql.DB) http.HandlerFunc {
 		resp.Userid = u.Userid
 		resp.Sig = sig
 
-		bs, err = json.MarshalIndent(resp, "", "\t")
-		if err != nil {
-			handleErr(w, err, "POST apiloginHandler")
-			return
-		}
 		w.Header().Set("Content-Type", "application/json")
 		P := makeFprintf(w)
-		P("%s", string(bs))
+		P("%s", jsonstr(resp))
 	}
 }
 
@@ -1592,7 +1590,7 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 				printViewEntry(P, db, e)
 				return
 			}
-			P("%s\n", e)
+			P("%s", jsonstr(e))
 			return
 		} else if r.Method == "POST" {
 			u := validateApiUser(db, r)
@@ -1622,7 +1620,7 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 
 			w.Header().Set("Content-Type", "application/json")
 			P := makeFprintf(w)
-			P("%s\n", &e)
+			P("%s", jsonstr(e))
 			return
 		} else if r.Method == "PUT" {
 			u := validateApiUser(db, r)
@@ -1653,7 +1651,7 @@ func apientryHandler(db *sql.DB) http.HandlerFunc {
 
 			w.Header().Set("Content-Type", "application/json")
 			P := makeFprintf(w)
-			P("%s\n", &e)
+			P("%s", jsonstr(e))
 			return
 		} else if r.Method == "DELETE" {
 			u := validateApiUser(db, r)
@@ -1721,13 +1719,9 @@ func apientriesHandler(db *sql.DB) http.HandlerFunc {
 			handleErr(w, err, "apientriesHandler")
 		}
 
-		bs, err := json.MarshalIndent(ee, "", "\t")
-		if err != nil {
-			handleErr(w, err, "apientriesHandler")
-		}
 		w.Header().Set("Content-Type", "application/json")
 		P := makeFprintf(w)
-		P("%s\n", string(bs))
+		P("%s", jsonstr(ee))
 	}
 }
 
@@ -1820,7 +1814,7 @@ func apifileHandler(db *sql.DB) http.HandlerFunc {
 
 			w.Header().Set("Content-Type", "application/json")
 			P := makeFprintf(w)
-			P("%s\n", f)
+			P("%s", jsonstr(f))
 			return
 		} else if r.Method == "POST" {
 			u := validateApiUser(db, r)
@@ -1850,7 +1844,7 @@ func apifileHandler(db *sql.DB) http.HandlerFunc {
 
 			w.Header().Set("Content-Type", "application/json")
 			P := makeFprintf(w)
-			P("%s\n", &f)
+			P("%s", jsonstr(f))
 			return
 		} else if r.Method == "PUT" {
 			u := validateApiUser(db, r)
@@ -1881,7 +1875,7 @@ func apifileHandler(db *sql.DB) http.HandlerFunc {
 
 			w.Header().Set("Content-Type", "application/json")
 			P := makeFprintf(w)
-			P("%s\n", &f)
+			P("%s", jsonstr(f))
 			return
 		} else if r.Method == "DELETE" {
 			u := validateApiUser(db, r)
@@ -1939,12 +1933,8 @@ func apifilesHandler(db *sql.DB) http.HandlerFunc {
 			handleErr(w, err, "apifilesHandler")
 		}
 
-		bs, err := json.MarshalIndent(ff, "", "\t")
-		if err != nil {
-			handleErr(w, err, "apifilesHandler")
-		}
 		w.Header().Set("Content-Type", "application/json")
 		P := makeFprintf(w)
-		P("%s\n", string(bs))
+		P("%s", jsonstr(ff))
 	}
 }
