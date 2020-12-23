@@ -51,12 +51,18 @@ type File struct {
 type Site struct {
 	Title    string `json:"title"`
 	About    string `json:"about"`
-	BlogType string `json:"blogtype"`
+	BlogType int    `json:"blogtype"`
 }
 type UserSettings struct {
 	Userid    int64  `json:"userid"`
 	BlogTitle string `json:"blogtitle"`
 	BlogAbout string `json:"blogabout"`
+}
+type PageParams struct {
+	BlogType     int
+	BlogTitle    string
+	BlogUsername string
+	BlogUserid   int64
 }
 
 func jsonstr(v interface{}) string {
@@ -411,6 +417,44 @@ func validateHash(shash, sinput string) bool {
 	return true
 }
 
+var DefaultSite = Site{
+	Title:    "Rob's Blog",
+	About:    "(about text here)",
+	BlogType: 1,
+}
+var DefaultUserSettings = UserSettings{
+	Userid:    0,
+	BlogTitle: "User's Title",
+	BlogAbout: "(about text here)",
+}
+
+func findSite(db *sql.DB) *Site {
+	s := "SELECT title, about, blogtype FROM site LIMIT 1"
+	row := db.QueryRow(s)
+	var site Site
+	err := row.Scan(&site.Title, &site.About, &site.BlogType)
+	if err == sql.ErrNoRows {
+		return &DefaultSite
+	}
+	if err != nil {
+		return &DefaultSite
+	}
+	return &site
+}
+
+func findUserSettingsById(db *sql.DB, userid int64) *UserSettings {
+	s := "SELECT user_id, blogtitle, blogabout FROM usersettings WHERE user_id = ?"
+	row := db.QueryRow(s, userid)
+	var us UserSettings
+	err := row.Scan(&us.Userid, &us.BlogTitle, &us.BlogAbout)
+	if err == sql.ErrNoRows {
+		return &DefaultUserSettings
+	}
+	if err != nil {
+		return &DefaultUserSettings
+	}
+	return &us
+}
 func findUserById(db *sql.DB, userid int64) *User {
 	s := "SELECT user_id, username, password FROM user WHERE user_id = ?"
 	row := db.QueryRow(s, userid)
@@ -841,20 +885,20 @@ func printContainerHscreenOpen(P PrintFunc) {
 func printContainerClose(P PrintFunc) {
 	P("</div>\n")
 }
-func printHeading(P PrintFunc, u *User) {
+func printHeading(P PrintFunc, u *User, pp *PageParams) {
 	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm\"\n>")
 	P("    <div>\n")
-	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/\">FreeBlog</a></h1>\n")
-	P("        <a href=\"about.html\" class=\"self-end mr-2\">About</a>\n")
+	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/%s\">%s</a></h1>\n", pp.BlogUsername, pp.BlogTitle)
+	P("        <a href=\"/%s?page=about\" class=\"self-end mr-2\">About</a>\n", pp.BlogUsername)
 	P("    </div>\n")
 	P("    <div>\n")
 	if u != nil {
 		P("        <div class=\"relative inline mr-2\">\n")
-		P("            <a class=\"mr-1\" href=\"/?page=dashboard\">%s</a>\n", escape(u.Username))
+		P("            <a class=\"mr-1\" href=\"/%s?page=dashboard\">%s</a>\n", pp.BlogUsername, escape(u.Username))
 		P("        </div>\n")
-		P("        <a href=\"/?page=logout\" class=\"inline self-end mr-1\">Logout</a>\n")
+		P("        <a href=\"/%s?page=logout\" class=\"inline self-end mr-1\">Logout</a>\n", pp.BlogUsername)
 	} else {
-		P("        <a href=\"/?page=login\" class=\"inline self-end mr-1\">Login</a>\n")
+		P("        <a href=\"/%s?page=login\" class=\"inline self-end mr-1\">Login</a>\n", pp.BlogUsername)
 	}
 	P("    </div>\n")
 	P("</div>\n")
@@ -974,39 +1018,69 @@ func rootHandler(db *sql.DB) http.HandlerFunc {
 			logoutHandler(w, r, db)
 		} else if page == "signup" {
 			signupHandler(w, r, db)
-		} else if page == "account" {
-			accountHandler(w, r, db)
-		} else if page == "password" {
-			passwordHandler(w, r, db)
-		} else if page == "delaccount" {
-			delaccountHandler(w, r, db)
 		} else if page == "dashboard" {
 			dashboardHandler(w, r, db)
 		}
 	}
 }
 
+func parsePageUrl(r *http.Request) (string, string) {
+	surl := strings.Trim(r.URL.Path, "/")
+	ss := strings.Split(surl, "/")
+	sslen := len(ss)
+	if sslen == 0 {
+		return "", ""
+	} else if sslen == 1 {
+		return qunescape(ss[0]), ""
+	}
+	return qunescape(ss[0]), qunescape(ss[1])
+}
+func getPageParams(r *http.Request, db *sql.DB) *PageParams {
+	var pp PageParams
+
+	site := findSite(db)
+	pp.BlogTitle = site.Title
+
+	var bloguser *User
+	blogusername, _ := parsePageUrl(r)
+	if blogusername != "" {
+		bloguser = findUserByUsername(db, blogusername)
+	}
+	if bloguser != nil {
+		pp.BlogUsername = qescape(bloguser.Username)
+		pp.BlogUserid = bloguser.Userid
+
+		if site.BlogType == 1 {
+			us := findUserSettingsById(db, bloguser.Userid)
+			pp.BlogTitle = escape(us.BlogTitle)
+		}
+	}
+
+	return &pp
+}
 func indexHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	u, _ := validateLoginCookie(db, r)
-	ee, err := findEntries(db, 0, 0, 0)
+
+	pp := getPageParams(r, db)
+	ee, err := findEntries(db, pp.BlogUserid, 0, 0)
 	if handleDbErr(w, err, "indexHandler") {
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html")
 	P := makeFprintf(w)
-	printHtmlOpen(P, "FreeBlog", nil)
+	printHtmlOpen(P, pp.BlogTitle, nil)
 	printContainerOpen(P)
-	printHeading(P, u)
+	printHeading(P, u, pp)
 
 	P("<h1 class=\"font-bold text-lg mb-2\">Latest Posts</h1>\n")
 	for _, e := range ee {
 		P("<div class=\"flex flex-row py-1\">\n")
 		P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
 		P("    <p class=\"flex-grow px-4\">\n")
-		P("        <a class=\"action font-bold\" href=\"/?page=entry&id=%d\">%s</a>\n", e.Entryid, escape(e.Title))
+		P("        <a class=\"action font-bold\" href=\"/%s?page=entry&id=%d\">%s</a>\n", pp.BlogUsername, e.Entryid, escape(e.Title))
 		P("    </p>\n")
-		P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/?username=%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
+		P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
 		P("</div>\n")
 	}
 
@@ -1030,9 +1104,10 @@ func entryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	w.Header().Set("Content-Type", "text/html")
 	P := makeFprintf(w)
-	printHtmlOpen(P, "FreeBlog", nil)
+	pp := getPageParams(r, db)
+	printHtmlOpen(P, pp.BlogTitle, nil)
 	printContainerOpen(P)
-	printHeading(P, u)
+	printHeading(P, u, pp)
 
 	printEntry(P, db, e)
 
@@ -1044,7 +1119,7 @@ func printEntry(P PrintFunc, db *sql.DB, e *Entry) {
 	if e.Username != "" {
 		P("<p class=\"mb-4 text-sm\">Posted on \n")
 		P("    <span class=\"italic\">%s</span> by \n", formatdate(e.Createdt))
-		P("    <a href=\"#\" class=\"action\">%s</a>\n", e.Username)
+		P("    <a href=\"/%s\" class=\"action\">%s</a>\n", qescape(e.Username), escape(e.Username))
 		P("</p>\n")
 	} else {
 		P("<p class=\"mb-4 text-sm\">Posted on <span class=\"italic\">%s</span></p>\n", formatdate(e.Createdt))
@@ -1101,6 +1176,8 @@ func fileHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 func loginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	u, _ := validateLoginCookie(db, r)
+	pp := getPageParams(r, db)
+
 	var errmsg string
 	var f struct{ username, pwd string }
 
@@ -1115,23 +1192,23 @@ func loginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			}
 			setLoginCookie(w, u, sig)
 
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("/%s", qescape(u.Username)), http.StatusSeeOther)
 			return
 		}
 	}
 
 	w.Header().Set("Content-Type", "text/html")
 	P := makeFprintf(w)
-	printHtmlOpen(P, "FreeBlog", nil)
+	printHtmlOpen(P, pp.BlogTitle, nil)
 	printContainerOpen(P)
-	printHeading(P, u)
+	printHeading(P, u, pp)
 
-	printFormSmallOpen(P, "/?page=login", "Log In")
+	printFormSmallOpen(P, fmt.Sprintf("/%s?page=login", pp.BlogUsername), "Log In")
 	printFormInput(P, "username", "username", f.username)
 	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormError(P, errmsg)
 	printFormSubmit(P, "Login")
-	printFormLinks(P, "", "/?page=signup", "Create New Account", "/", "Cancel")
+	printFormLinks(P, "", fmt.Sprintf("/%s?page=signup", pp.BlogUsername), "Create New Account", "/", "Cancel")
 	printFormClose(P)
 
 	printContainerClose(P)
@@ -1139,10 +1216,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 func logoutHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	delLoginCookie(w)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+
+	pp := getPageParams(r, db)
+	http.Redirect(w, r, fmt.Sprintf("/%s", pp.BlogUsername), http.StatusSeeOther)
 }
 func signupHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	u, _ := validateLoginCookie(db, r)
+	pp := getPageParams(r, db)
+
 	var errmsg string
 	var f struct{ username, pwd, pwd2 string }
 
@@ -1167,166 +1248,23 @@ func signupHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			}
 			setLoginCookie(w, u, sig)
 
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("/%s", qescape(u.Username)), http.StatusSeeOther)
 			return
 		}
 	}
 
 	w.Header().Set("Content-Type", "text/html")
 	P := makeFprintf(w)
-	printHtmlOpen(P, "FreeBlog", nil)
+	printHtmlOpen(P, pp.BlogTitle, nil)
 	printContainerOpen(P)
-	printHeading(P, u)
+	printHeading(P, u, pp)
 
-	printFormSmallOpen(P, "/?page=signup", "Sign Up")
+	printFormSmallOpen(P, fmt.Sprintf("/%s?page=signup", pp.BlogUsername), "Sign Up")
 	printFormInput(P, "username", "username", f.username)
 	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormInputPassword(P, "pwd2", "re-enter password", f.pwd2)
 	printFormError(P, errmsg)
 	printFormSubmit(P, "Sign Up")
-	printFormLinks(P, "justify-end", "/", "Cancel")
-	printFormClose(P)
-
-	printContainerClose(P)
-	printHtmlClose(P)
-}
-
-func accountHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	u, _ := validateLoginCookie(db, r)
-	if u == nil {
-		http.Error(w, "Must be logged in", 401)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	P := makeFprintf(w)
-	printHtmlOpen(P, "FreeBlog", nil)
-	printContainerOpen(P)
-	printHeading(P, u)
-
-	printDivSmallOpen(P, "Account Settings")
-	printDivFlex(P, "justify-start")
-	P("<div class=\"px-0\">\n")
-	P("    <a href=\"/?page=password\" class=\"action block border-b\">Change Password</a>\n")
-	if u.Userid != 1 {
-		P("    <a href=\"/?page=delaccount\" class=\"action block border-b\">Delete Account</a>\n")
-	}
-	P("</div>\n")
-	P("<div class=\"px-4\">\n")
-	P("</div>\n")
-	P("<div class=\"px-4\">\n")
-	P("</div>\n")
-	printDivClose(P)
-	printDivClose(P)
-
-	printContainerClose(P)
-	printHtmlClose(P)
-}
-
-func passwordHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	u, _ := validateLoginCookie(db, r)
-	if u == nil {
-		http.Error(w, "Must be logged in", 401)
-		return
-	}
-
-	var errmsg string
-	var f struct{ pwd, newpwd, newpwd2 string }
-
-	if r.Method == "POST" {
-		f.pwd = r.FormValue("pwd")
-		f.newpwd = r.FormValue("newpwd")
-		f.newpwd2 = r.FormValue("newpwd2")
-		for {
-			if f.newpwd != f.newpwd2 {
-				errmsg = "passwords don't match"
-				break
-			}
-			err := edituser(db, u.Userid, f.pwd, f.newpwd)
-			if err != nil {
-				errmsg = fmt.Sprintf("%s", err)
-				break
-			}
-			u, sig, err := loginUserid(db, u.Userid, f.newpwd)
-			if err != nil {
-				errmsg = fmt.Sprintf("%s", err)
-				break
-			}
-			setLoginCookie(w, u, sig)
-
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	P := makeFprintf(w)
-	printHtmlOpen(P, "FreeBlog", nil)
-	printContainerOpen(P)
-	printHeading(P, u)
-
-	printFormSmallOpen(P, "/?page=password", "Change Password")
-	printFormInputPassword(P, "pwd", "password", f.pwd)
-	printFormInputPassword(P, "newpwd", "new password", f.newpwd)
-	printFormInputPassword(P, "newpwd2", "re-enter password", f.newpwd2)
-	printFormError(P, errmsg)
-	printFormSubmit(P, "Submit")
-	printFormLinks(P, "justify-end", "/", "Cancel")
-	printFormClose(P)
-
-	printContainerClose(P)
-	printHtmlClose(P)
-}
-
-func delaccountHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	u, _ := validateLoginCookie(db, r)
-	if u == nil {
-		http.Error(w, "Must be logged in", 401)
-		return
-	}
-
-	var errmsg string
-	var f struct{ pwd string }
-
-	if r.Method == "POST" {
-		f.pwd = r.FormValue("pwd")
-		for {
-			// Admin takes ownership of deleted user's entries and files.
-			err := transferUserEntries(db, u.Userid, 1)
-			if err != nil {
-				errmsg = fmt.Sprintf("%s", err)
-				break
-			}
-			err = transferUserFiles(db, u.Userid, 1)
-			if err != nil {
-				errmsg = fmt.Sprintf("%s", err)
-				break
-			}
-
-			err = deluser(db, u.Userid, f.pwd)
-			if err != nil {
-				errmsg = fmt.Sprintf("%s", err)
-				break
-			}
-
-			// logout
-			delLoginCookie(w)
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	P := makeFprintf(w)
-	printHtmlOpen(P, "FreeBlog", nil)
-	printContainerOpen(P)
-	printHeading(P, u)
-
-	//$$ Add a checkbox option to delete user's entries?
-	printFormSmallOpen(P, "/?page=delaccount", "Delete Account")
-	printFormInputPassword(P, "pwd", "password", f.pwd)
-	printFormError(P, errmsg)
-	printFormSubmit(P, "Submit")
 	printFormLinks(P, "justify-end", "/", "Cancel")
 	printFormClose(P)
 
@@ -1403,9 +1341,10 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	w.Header().Set("Content-Type", "text/html")
 	P := makeFprintf(w)
-	printHtmlOpen(P, "FreeBlog", []string{"/static/bundle.js", "/static/dashboard.js"})
+	pp := getPageParams(r, db)
+	printHtmlOpen(P, pp.BlogTitle, []string{"/static/bundle.js", "/static/dashboard.js"})
 	printWideContainerOpen(P)
-	printHeading(P, u)
+	printHeading(P, u, pp)
 
 	printContainerClose(P)
 	printHtmlClose(P)
