@@ -1908,7 +1908,7 @@ func apisiteHandler(db *sql.DB) http.HandlerFunc {
 			P := makeFprintf(w)
 			P("%s", jsonstr(site))
 			return
-		} else if r.Method == "POST" {
+		} else if r.Method == "POST" || r.Method == "PUT" {
 			u := validateApiUser(db, r)
 			if u == nil {
 				http.Error(w, "Invalid user", 401)
@@ -1942,7 +1942,7 @@ func apisiteHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		http.Error(w, "Use GET/POST", 401)
+		http.Error(w, "Use GET/PUT/POST", 401)
 	}
 }
 
@@ -1967,7 +1967,7 @@ func apiusersettingsHandler(db *sql.DB) http.HandlerFunc {
 			P := makeFprintf(w)
 			P("%s", jsonstr(us))
 			return
-		} else if r.Method == "POST" {
+		} else if r.Method == "POST" || r.Method == "PUT" {
 			u := validateApiUser(db, r)
 			if u == nil {
 				http.Error(w, "Invalid user", 401)
@@ -1997,6 +1997,6 @@ func apiusersettingsHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		http.Error(w, "Use GET/POST", 401)
+		http.Error(w, "Use GET/PUT/POST", 401)
 	}
 }
