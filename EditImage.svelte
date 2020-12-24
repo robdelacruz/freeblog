@@ -54,6 +54,7 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
+import {find, submit} from "./helpers.js";
 export let id = 0;
 
 let svcurl = "/api";
@@ -83,7 +84,8 @@ async function init(qid) {
         return;
     }
 
-    let [f, err] = await findfile(qid);
+    let sreq = `${svcurl}/file?id=${qid}`;
+    let [f, err] = await find(sreq);
     if (err !=  null) {
         console.error(err);
         ui.loadstatus = "Server error loading image";
@@ -113,7 +115,12 @@ function setimgsrc(node, previewfile) {
 async function onsubmit(e) {
     ui.submitstatus = "processing";
 
-    let [savedfile, err] = await submitfile(ui.file);
+    let sreq = `${svcurl}/file?id=${id}`;
+    let method = "PUT";
+    if (ui.file.fileid == 0) {
+        method = "POST";
+    }
+    let [savedfile, err] = await submit(sreq, method, ui.file);
     if (err != null) {
         console.error(err);
         ui.submitstatus = "server error submitting image";
@@ -127,25 +134,6 @@ async function onsubmit(e) {
 
 function oncancel(e) {
     dispatch("cancel");
-}
-
-// Returns [file, err]
-async function findfile(fileid) {
-    let sreq = `${svcurl}/file?id=${fileid}`;
-    try {
-        let res = await fetch(sreq, {method: "GET"});
-        if (!res.ok) {
-            if (res.status == 404) {
-                return [null, null];
-            }
-            let s = await res.text();
-            return [null, new Error(s)];
-        }
-        let file = await res.json();
-        return [file, null];
-    } catch(err) {
-        return [null, err];
-    }
 }
 
 // Returns [savedfile, err]

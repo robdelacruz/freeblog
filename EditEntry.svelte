@@ -45,6 +45,7 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
+import {find, submit} from "./helpers.js";
 export let id = 0;
 
 let svcurl = "/api";
@@ -72,7 +73,8 @@ async function init(qentryid) {
         return;
     }
 
-    let [entry, err] = await findentry(qentryid);
+    let sreq = `${svcurl}/entry?id=${qentryid}`
+    let [entry, err] = await find(sreq);
     if (err !=  null) {
         console.error(err);
         ui.loadstatus = "Server error loading entry";
@@ -87,7 +89,12 @@ async function init(qentryid) {
 async function onsubmit(e) {
     ui.submitstatus = "processing";
 
-    let [savedentry, err] = await submitentry(ui.entry);
+    let sreq = `${svcurl}/entry/`;
+    let method = "PUT";
+    if (ui.entry.entryid == 0) {
+        method = "POST";
+    }
+    let [savedentry, err] = await submit(sreq, method, ui.entry);
     if (err != null) {
         console.error(err);
         ui.submitstatus = "server error submitting entry";
@@ -101,53 +108,6 @@ async function onsubmit(e) {
 
 function oncancel(e) {
     dispatch("cancel");
-}
-
-// Returns [entry, err]
-async function findentry(entryid) {
-    let sreq = `${svcurl}/entry?id=${entryid}`;
-    try {
-        let res = await fetch(sreq, {method: "GET"});
-        if (!res.ok) {
-            if (res.status == 404) {
-                return [null, null];
-            }
-            let s = await res.text();
-            return [null, new Error(s)];
-        }
-        let entry = await res.json();
-        return [entry, null];
-    } catch(err) {
-        return [null, err];
-    }
-}
-
-// Returns [savedentry, err]
-async function submitentry(e) {
-    let sreq = `${svcurl}/entry/`;
-    let method = "";
-    if (e.entryid == 0) {
-        method = "POST";
-    } else {
-        method = "PUT";
-    }
-
-    try {
-        let res = await fetch(sreq, {
-            method: method,
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(e),
-        });
-        if (!res.ok) {
-            let s = await res.text();
-            console.error(s);
-            return [null, new Error(s)];
-        }
-        let savedentry = await res.json();
-        return [savedentry, null];
-    } catch(err) {
-        return [null, err];
-    }
 }
 </script>
 

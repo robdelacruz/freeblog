@@ -16,6 +16,7 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
+import {find, submit} from "./helpers.js";
 
 export let userid = 0;
 
@@ -28,32 +29,21 @@ init(userid);
 
 async function init(userid) {
     ui.status = "";
-    let [ee, err] = await findentries(userid);
-    if (err != null) {
-        console.error(err);
-        ui.status = "Server error while fetching entries";
-    }
-    ui.entries = ee;
-}
 
-// Returns []entries, error
-async function findentries(userid) {
     let sreq = `${svcurl}/entries?userid=${userid}`;
     // Show all entries for admin
     if (userid == 1) {
         sreq = `${svcurl}/entries`;
     }
-    try {
-        let res = await fetch(sreq, {method: "GET"});
-        if (!res.ok) {
-            let s = await res.text();
-            return [[], new Error(s)];
-        }
-        let entries = await res.json();
-        return [entries, null];
-    } catch (err) {
-        return [[], err];
+    let [ee, err] = await find(sreq);
+    if (err != null) {
+        console.error(err);
+        ui.status = "Server error while fetching entries";
     }
+    if (ee == null) {
+        ee = [];
+    }
+    ui.entries = ee;
 }
 
 function dispatchAction(action, entryid) {

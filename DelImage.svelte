@@ -32,7 +32,7 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
-import {currentSession} from "./helpers.js";
+import {find, del} from "./helpers.js";
 export let id = 0;
 
 let svcurl = "/api";
@@ -55,7 +55,8 @@ async function init(qid) {
         return;
     }
 
-    let [f, err] = await findfile(qid);
+    let sreq = `${svcurl}/file?id=${qid}`;
+    let [f, err] = await find(sreq);
     if (err !=  null) {
         console.error(err);
         ui.loadstatus = "Server error loading image";
@@ -70,7 +71,8 @@ async function init(qid) {
 async function onsubmit(e) {
     ui.submitstatus = "processing";
 
-    let err = await delfile(id);
+    let sreq = `${svcurl}/file?id=${id}`;
+    let err = await del(sreq);
     if (err != null) {
         console.error(err);
         ui.submitstatus = "server error deleting image";
@@ -84,41 +86,6 @@ async function onsubmit(e) {
 
 function oncancel(e) {
     dispatch("cancel");
-}
-
-// Returns [file, err]
-async function findfile(fileid) {
-    let sreq = `${svcurl}/file?id=${fileid}`;
-    try {
-        let res = await fetch(sreq, {method: "GET"});
-        if (!res.ok) {
-            if (res.status == 404) {
-                return [null, null];
-            }
-            let s = await res.text();
-            return [null, new Error(s)];
-        }
-        let file = await res.json();
-        return [file, null];
-    } catch(err) {
-        return [null, err];
-    }
-}
-
-// Returns err
-async function delfile(fileid) {
-    let sreq = `${svcurl}/file?id=${fileid}`;
-    try {
-        let res = await fetch(sreq, {method: "DELETE"});
-        if (!res.ok) {
-            let s = await res.text();
-            console.error(s);
-            return [null, new Error(s)];
-        }
-        return null;
-    } catch(err) {
-        return err;
-    }
 }
 
 </script>

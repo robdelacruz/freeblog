@@ -31,6 +31,7 @@
 import {currentSession, initPopupHandlers} from "./helpers.js";
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
+import {exec} from "./helpers.js";
 
 let svcurl = "/api";
 let session = currentSession();
@@ -53,7 +54,8 @@ async function onsubmit(e) {
         pwd: ui.pwd,
         newpwd: ui.newpwd,
     };
-    let err = await changepwd(req);
+    let sreq = `${svcurl}/changepwd/`;
+    let err = await exec(sreq, req);
     if (err != null) {
         console.error(err);
         if (err.status == 401) {
@@ -68,11 +70,12 @@ async function onsubmit(e) {
         userid: session.userid,
         pwd: ui.newpwd,
     };
-    let [resp, err2] = await login(req);
-    if (err2 != null) {
-        console.error(err2);
-        if (err2.status == 401) {
-            ui.submitstatus = err2.message;
+    sreq = `${svcurl}/login/`;
+    err = await exec(sreq, req);
+    if (err != null) {
+        console.error(err);
+        if (err.status == 401) {
+            ui.submitstatus = err.message;
             return;
         }
         ui.submitstatus = "server error while trying to re-login";
@@ -88,47 +91,5 @@ function oncancel(e) {
     dispatch("cancel");
 }
 
-// Returns err
-async function changepwd(req) {
-    let sreq = `${svcurl}/changepwd/`;
-    try {
-        let res = await fetch(sreq, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(req),
-        });
-        if (!res.ok) {
-            let s = await res.text();
-            let err = new Error(s);
-            err.status = res.status;
-            return err;
-        }
-        return null;
-    } catch(err) {
-        return err;
-    }
-}
-
-// Returns [{userid, sig}, err]
-async function login(req) {
-    let sreq = `${svcurl}/login/`;
-    try {
-        let res = await fetch(sreq, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(req),
-        });
-        if (!res.ok) {
-            let s = await res.text();
-            let err = new Error(s);
-            err.status = res.status;
-            return [null, err];
-        }
-        let resp = await res.json();
-        return [resp, null];
-    } catch(err) {
-        return [null, err];
-    }
-}
 </script>
 

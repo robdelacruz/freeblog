@@ -32,11 +32,10 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
-import {currentSession} from "./helpers.js";
+import {currentSession, find, del} from "./helpers.js";
 export let id = 0;
 
 let svcurl = "/api";
-let session = currentSession();
 
 let blankentry = {
     entryid: 0,
@@ -63,7 +62,8 @@ async function init(qentryid) {
         return;
     }
 
-    let [entry, err] = await findentry(qentryid);
+    let sreq = `${svcurl}/entry?id=${qentryid}`;
+    let [entry, err] = await find(sreq);
     if (err !=  null) {
         console.error(err);
         ui.loadstatus = "Server error loading entry";
@@ -73,7 +73,8 @@ async function init(qentryid) {
     ui.loadstatus = "";
     ui.entry = entry;
 
-    let [entryhtml, err2] = await findentryhtml(qentryid);
+    sreq = `${svcurl}/entry?id=${qentryid}&fmt=html`;
+    let [entryhtml, err2] = await find(sreq, "text");
     if (err2 !=  null) {
         console.error(err2);
         ui.loadstatus = "Server error loading entry";
@@ -92,7 +93,8 @@ function oncancel(e) {
 async function onsubmit(e) {
     ui.submitstatus = "processing";
 
-    let err = await delentry(id);
+    let sreq = `${svcurl}/entry?id=${id}`;
+    let err = await del(sreq);
     if (err != null) {
         console.error(err);
         ui.submitstatus = "server error deleting entry";
@@ -102,61 +104,6 @@ async function onsubmit(e) {
     ui.submitstatus = "";
     ui.entryhtml = "";
     dispatch("submit");
-}
-
-// Returns [entry, err]
-async function findentry(entryid) {
-    let sreq = `${svcurl}/entry?id=${entryid}`;
-    try {
-        let res = await fetch(sreq, {method: "GET"});
-        if (!res.ok) {
-            if (res.status == 404) {
-                return [null, null];
-            }
-            let s = await res.text();
-            return [null, new Error(s)];
-        }
-        let entry = await res.json();
-        return [entry, null];
-    } catch(err) {
-        return [null, err];
-    }
-}
-
-// Returns [entryhtml, err]
-async function findentryhtml(entryid) {
-    let sreq = `${svcurl}/entry?id=${entryid}&fmt=html`;
-    try {
-        let res = await fetch(sreq, {method: "GET"});
-        if (!res.ok) {
-            if (res.status == 404) {
-                return [null, null];
-            }
-            let s = await res.text();
-            return [null, new Error(s)];
-        }
-        let entryhtml = await res.text();
-        return [entryhtml, null];
-    } catch(err) {
-        return [null, err];
-    }
-}
-
-// Returns err
-async function delentry(entryid) {
-    let sreq = `${svcurl}/entry?id=${entryid}`;
-
-    try {
-        let res = await fetch(sreq, {method: "DELETE"});
-        if (!res.ok) {
-            let s = await res.text();
-            console.error(s);
-            return new Error(s);
-        }
-        return null;
-    } catch(err) {
-        return err;
-    }
 }
 </script>
 

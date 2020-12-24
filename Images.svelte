@@ -16,6 +16,7 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
+import {find, submit} from "./helpers.js";
 
 export let userid = 0;
 
@@ -28,10 +29,19 @@ init(userid);
 
 async function init(userid) {
     ui.status = "";
-    let [ff, err] = await findimages(userid);
+
+    let sreq = `${svcurl}/files?filetype=image&userid=${userid}`;
+    // Show all images for admin
+    if (userid == 1) {
+        sreq = `${svcurl}/files?filetype=image`;
+    }
+    let [ff, err] = await find(sreq);
     if (err != null) {
         console.error(err);
         ui.status = "Server error while fetching images";
+    }
+    if (ff == null) {
+        ff = [];
     }
     ui.files = ff;
 }

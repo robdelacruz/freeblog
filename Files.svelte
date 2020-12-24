@@ -16,6 +16,7 @@
 <script>
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
+import {find, submit} from "./helpers.js";
 
 export let userid = 0;
 
@@ -28,32 +29,21 @@ init(userid);
 
 async function init(userid) {
     ui.status = "";
-    let [ff, err] = await findfiles(userid);
-    if (err != null) {
-        console.error(err);
-        ui.status = "Server error while fetching files";
-    }
-    ui.files = ff;
-}
 
-// Returns []files, error
-async function findfiles(userid) {
     let sreq = `${svcurl}/files?filetype=attachment&userid=${userid}`;
     // Show all files for admin
     if (userid == 1) {
         sreq = `${svcurl}/files?filetype=attachment`;
     }
-    try {
-        let res = await fetch(sreq, {method: "GET"});
-        if (!res.ok) {
-            let s = await res.text();
-            return [[], new Error(s)];
-        }
-        let files = await res.json();
-        return [files, null];
-    } catch (err) {
-        return [[], err];
+    let [ff, err] = await find(sreq);
+    if (err != null) {
+        console.error(err);
+        ui.status = "Server error while fetching files";
     }
+    if (ff == null) {
+        ff = [];
+    }
+    ui.files = ff;
 }
 
 function dispatchAction(action, itemid) {

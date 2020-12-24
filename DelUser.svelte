@@ -24,6 +24,7 @@
 import {currentSession, initPopupHandlers} from "./helpers.js";
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
+import {find, exec} from "./helpers.js";
 
 let svcurl = "/api/deluser";
 let session = currentSession();
@@ -41,7 +42,8 @@ async function onsubmit(e) {
         userid: session.userid,
         pwd: ui.pwd,
     };
-    let err = await deluser(req);
+    let sreq = `${svcurl}/deluser/`;
+    let err = await exec(sreq, req);
     if (err != null) {
         console.error(err);
         if (err.status == 401) {
@@ -55,7 +57,8 @@ async function onsubmit(e) {
     ui.submitstatus = "";
     dispatch("submit");
 
-    await logout();
+    sreq = `${svcurl}/logout/`;
+    await exec(sreq, {});
     window.location.replace("/");
 }
 
@@ -63,42 +66,6 @@ function oncancel(e) {
     dispatch("cancel");
 }
 
-// Returns err
-async function deluser(req) {
-    let sreq = `${svcurl}/deluser/`;
-    try {
-        let res = await fetch(sreq, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(req),
-        });
-        if (!res.ok) {
-            let s = await res.text();
-            let err = new Error(s);
-            err.status = res.status;
-            return err;
-        }
-        return null;
-    } catch(err) {
-        return err;
-    }
-}
-// Returns err
-async function logout() {
-    let sreq = `${svcurl}/logout/`;
-    try {
-        let res = await fetch(sreq, {method: "GET"});
-        if (!res.ok) {
-            let s = await res.text();
-            let err = new Error(s);
-            err.status = res.status;
-            return err;
-        }
-        return null;
-    } catch(err) {
-        return null;
-    }
-}
 </script>
 
 

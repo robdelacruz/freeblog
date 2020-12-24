@@ -163,7 +163,7 @@ func createTables(newfile string) {
 	}
 
 	ss := []string{
-		"CREATE TABLE site (title TEXT, about TEXT, blogtype INTEGER);",
+		"CREATE TABLE site (site_id INTEGER PRIMARY KEY NOT NULL, title TEXT, about TEXT, blogtype INTEGER);",
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"CREATE TABLE usersettings (user_id INTEGER PRIMARY KEY NOT NULL, blogtitle TEXT, blogabout TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
@@ -432,10 +432,10 @@ var DefaultUserSettings = UserSettings{
 }
 
 func findSite(db *sql.DB) *Site {
-	s := "SELECT title, about, blogtype FROM site LIMIT 1"
-	row := db.QueryRow(s)
+	s := "SELECT site_id, title, about, blogtype FROM site WHERE site_id = ?"
+	row := db.QueryRow(s, 1)
 	var site Site
-	err := row.Scan(&site.Title, &site.About, &site.BlogType)
+	err := row.Scan(&site.Siteid, &site.Title, &site.About, &site.BlogType)
 	if err != nil {
 		return &DefaultSite
 	}
@@ -1509,6 +1509,11 @@ func apiloginHandler(db *sql.DB) http.HandlerFunc {
 
 func apilogoutHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Use POST", 401)
+			return
+		}
+
 		delLoginCookie(w)
 	}
 }
