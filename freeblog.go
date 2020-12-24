@@ -49,6 +49,7 @@ type File struct {
 	Username string `json:"username"`
 }
 type Site struct {
+	Siteid   int64  `json:"siteid"`
 	Title    string `json:"title"`
 	About    string `json:"about"`
 	BlogType int    `json:"blogtype"`
@@ -124,7 +125,6 @@ func run(args []string) error {
 		return fmt.Errorf("Error opening '%s' (%s)\n", dbfile, err)
 	}
 
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/radio.ico") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/", rootHandler(db))
 	http.HandleFunc("/api/entry/", apientryHandler(db))
@@ -132,6 +132,8 @@ func run(args []string) error {
 	http.HandleFunc("/api/uploadfiles/", apiuploadfilesHandler(db))
 	http.HandleFunc("/api/file/", apifileHandler(db))
 	http.HandleFunc("/api/files/", apifilesHandler(db))
+	http.HandleFunc("/api/site/", apisiteHandler(db))
+	http.HandleFunc("/api/usersettings/", apiusersettingsHandler(db))
 
 	http.HandleFunc("/api/changepwd/", apichangepwdHandler(db))
 	http.HandleFunc("/api/deluser/", apideluserHandler(db))
@@ -418,13 +420,14 @@ func validateHash(shash, sinput string) bool {
 }
 
 var DefaultSite = Site{
-	Title:    "Rob's Blog",
+	Siteid:   1,
+	Title:    "FreeBlog",
 	About:    "(about text here)",
 	BlogType: 1,
 }
 var DefaultUserSettings = UserSettings{
 	Userid:    0,
-	BlogTitle: "User's Title",
+	BlogTitle: "My Blog",
 	BlogAbout: "(about text here)",
 }
 
@@ -433,13 +436,15 @@ func findSite(db *sql.DB) *Site {
 	row := db.QueryRow(s)
 	var site Site
 	err := row.Scan(&site.Title, &site.About, &site.BlogType)
-	if err == sql.ErrNoRows {
-		return &DefaultSite
-	}
 	if err != nil {
 		return &DefaultSite
 	}
 	return &site
+}
+func createSite(db *sql.DB, site *Site) error {
+	s := "INSERT OR REPLACE INTO site (site_id, title, about, blogtype) VALUES (?, ?, ?, ?)"
+	_, err := sqlexec(db, s, 1, site.Title, site.About, site.BlogType)
+	return err
 }
 
 func findUserSettingsById(db *sql.DB, userid int64) *UserSettings {
@@ -447,13 +452,18 @@ func findUserSettingsById(db *sql.DB, userid int64) *UserSettings {
 	row := db.QueryRow(s, userid)
 	var us UserSettings
 	err := row.Scan(&us.Userid, &us.BlogTitle, &us.BlogAbout)
-	if err == sql.ErrNoRows {
-		return &DefaultUserSettings
-	}
 	if err != nil {
-		return &DefaultUserSettings
+		us.Userid = userid
+		us.BlogTitle = DefaultUserSettings.BlogTitle
+		us.BlogAbout = DefaultUserSettings.BlogAbout
+		return &us
 	}
 	return &us
+}
+func createUserSettings(db *sql.DB, us *UserSettings) error {
+	s := "INSERT OR REPLACE INTO usersettings (user_id, blogtitle, blogabout) VALUES (?, ?, ?)"
+	_, err := sqlexec(db, s, us.Userid, us.BlogTitle, us.BlogAbout)
+	return err
 }
 func findUserById(db *sql.DB, userid int64) *User {
 	s := "SELECT user_id, username, password FROM user WHERE user_id = ?"
@@ -1875,5 +1885,113 @@ func apifilesHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		P := makeFprintf(w)
 		P("%s", jsonstr(ff))
+	}
+}
+
+// GET /api/site
+// POST /api/site {...}
+func apisiteHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			site := findSite(db)
+			if site == nil {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s", jsonstr(site))
+			return
+		} else if r.Method == "POST" {
+			u := validateApiUser(db, r)
+			if u == nil {
+				http.Error(w, "Invalid user", 401)
+				return
+			}
+			if u.Userid != 1 {
+				http.Error(w, "Not authorized", 401)
+				return
+			}
+			bs, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				handleErr(w, err, "POST apisiteHandler")
+				return
+			}
+			var site Site
+			err = json.Unmarshal(bs, &site)
+			site.Siteid = 1
+			if err != nil {
+				handleErr(w, err, "POST apisiteHandler")
+				return
+			}
+			err = createSite(db, &site)
+			if err != nil {
+				handleErr(w, err, "POST apisiteHandler")
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s", jsonstr(site))
+			return
+		}
+
+		http.Error(w, "Use GET/POST", 401)
+	}
+}
+
+// GET /api/usersettings?id=123
+// POST /api/usersettings {...}
+func apiusersettingsHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			qid := idtoi(r.FormValue("id"))
+			if qid == 0 {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+
+			us := findUserSettingsById(db, qid)
+			if us == nil {
+				http.Error(w, "Not found.", 404)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s", jsonstr(us))
+			return
+		} else if r.Method == "POST" {
+			u := validateApiUser(db, r)
+			if u == nil {
+				http.Error(w, "Invalid user", 401)
+				return
+			}
+			bs, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				handleErr(w, err, "POST apiusersettingsHandler")
+				return
+			}
+			var us UserSettings
+			err = json.Unmarshal(bs, &us)
+			if err != nil {
+				handleErr(w, err, "POST apiusersettingsHandler")
+				return
+			}
+			us.Userid = u.Userid
+			err = createUserSettings(db, &us)
+			if err != nil {
+				handleErr(w, err, "POST apiusersettingsHandler")
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			P := makeFprintf(w)
+			P("%s", jsonstr(us))
+			return
+		}
+
+		http.Error(w, "Use GET/POST", 401)
 	}
 }
