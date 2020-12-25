@@ -32,6 +32,7 @@ import {currentSession, initPopupHandlers} from "./helpers.js";
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
 import {exec} from "./helpers.js";
+export let userid = 0;
 
 let svcurl = "/api";
 let session = currentSession();
@@ -50,7 +51,7 @@ async function onsubmit(e) {
     ui.submitstatus = "processing";
 
     let req = {
-        userid: session.userid,
+        userid: userid,
         pwd: ui.pwd,
         newpwd: ui.newpwd,
     };
@@ -66,22 +67,24 @@ async function onsubmit(e) {
         return;
     }
 
-    req = {
-        userid: session.userid,
-        pwd: ui.newpwd,
-    };
-    sreq = `${svcurl}/login/`;
-    err = await exec(sreq, req);
-    if (err != null) {
-        console.error(err);
-        if (err.status == 401) {
-            ui.submitstatus = err.message;
+    if (session.userid == userid) {
+        req = {
+            userid: userid,
+            pwd: ui.newpwd,
+        };
+        sreq = `${svcurl}/login/`;
+        err = await exec(sreq, req);
+        if (err != null) {
+            console.error(err);
+            if (err.status == 401) {
+                ui.submitstatus = err.message;
+                return;
+            }
+            ui.submitstatus = "server error while trying to re-login";
             return;
         }
-        ui.submitstatus = "server error while trying to re-login";
-        return;
+        session = currentSession();
     }
-    session = currentSession();
 
     ui.submitstatus = "";
     dispatch("submit");

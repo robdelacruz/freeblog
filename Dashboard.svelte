@@ -48,15 +48,15 @@
             {/if}
         {:else if ui.tabsel == "account"}
             {#if ui.action == ""}
-                <AccountMenu on:action={item_action} />
-<!--
-            {:else if ui.action == "blogsettings"}
-                <EditBlogSettings id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
--->
+                <AccountMenu userid={session.userid} on:action={item_action} />
+            {:else if ui.action == "site"}
+                <EditSite on:submit={clearaction} on:cancel={clearaction}/>
+            {:else if ui.action == "usersettings"}
+                <EditUserSettings userid={session.userid} on:submit={clearaction} on:cancel={clearaction}/>
             {:else if ui.action == "changepwd"}
-                <ChangePassword on:submit={clearaction} on:cancel={clearaction}/>
+                <ChangePassword userid={session.userid} on:submit={clearaction} on:cancel={clearaction}/>
             {:else if ui.action == "deluser"}
-                <DelUser id={ui.itemid} on:submit={clearaction} on:cancel={clearaction}/>
+            <DelUser userid={session.userid} username={session.username} on:submit={clearaction} on:cancel={clearaction}/>
             {/if}
         {/if}
         </div>
@@ -84,7 +84,8 @@ import Files from "./Files.svelte";
 import EditFile from "./EditFile.svelte";
 import DelFile from "./DelFile.svelte";
 import AccountMenu from "./AccountMenu.svelte";
-//import EditBlogSettings from "./EditBlogSettings.svelte";
+import EditSite from "./EditSite.svelte";
+import EditUserSettings from "./EditUserSettings.svelte";
 import ChangePassword from "./ChangePassword.svelte";
 import DelUser from "./DelUser.svelte";
 import UploadImages from "./UploadImages.svelte";

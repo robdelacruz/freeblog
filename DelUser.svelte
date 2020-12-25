@@ -2,7 +2,7 @@
     <div class="flex flex-row py-1">
         <div class="flex-grow">
             <p class="inline mr-1">Delete Account:</p>
-            <span class="action font-bold text-gray-900">{session.username}</span>
+            <span class="action font-bold text-gray-900">{username}</span>
         </div>
         <div>
             <button class="inline py-1 px-4 border border-gray-500 font-bold mr-2">Delete Account</button>
@@ -25,6 +25,8 @@ import {currentSession, initPopupHandlers} from "./helpers.js";
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
 import {find, exec} from "./helpers.js";
+export let userid = 0;
+export let username = "";
 
 let svcurl = "/api/deluser";
 let session = currentSession();
@@ -39,7 +41,7 @@ async function onsubmit(e) {
     ui.submitstatus = "processing";
 
     let req = {
-        userid: session.userid,
+        userid: userid,
         pwd: ui.pwd,
     };
     let sreq = `${svcurl}/deluser/`;
@@ -57,9 +59,11 @@ async function onsubmit(e) {
     ui.submitstatus = "";
     dispatch("submit");
 
-    sreq = `${svcurl}/logout/`;
-    await exec(sreq, {});
-    window.location.replace("/");
+    if (session.userid == userid) {
+        sreq = `${svcurl}/logout/`;
+        await exec(sreq, {});
+        window.location.replace("/");
+    }
 }
 
 function oncancel(e) {

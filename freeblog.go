@@ -49,10 +49,10 @@ type File struct {
 	Username string `json:"username"`
 }
 type Site struct {
-	Siteid   int64  `json:"siteid"`
-	Title    string `json:"title"`
-	About    string `json:"about"`
-	BlogType int    `json:"blogtype"`
+	Siteid  int64  `json:"siteid"`
+	Title   string `json:"title"`
+	About   string `json:"about"`
+	IsGroup bool   `json:"isgroup"`
 }
 type UserSettings struct {
 	Userid    int64  `json:"userid"`
@@ -60,7 +60,7 @@ type UserSettings struct {
 	BlogAbout string `json:"blogabout"`
 }
 type PageParams struct {
-	BlogType     int
+	IsGroup      bool
 	BlogTitle    string
 	BlogUsername string
 	BlogUserid   int64
@@ -163,7 +163,7 @@ func createTables(newfile string) {
 	}
 
 	ss := []string{
-		"CREATE TABLE site (site_id INTEGER PRIMARY KEY NOT NULL, title TEXT, about TEXT, blogtype INTEGER);",
+		"CREATE TABLE site (site_id INTEGER PRIMARY KEY NOT NULL, title TEXT, about TEXT, isgroup INTEGER);",
 		"CREATE TABLE user (user_id INTEGER PRIMARY KEY NOT NULL, username TEXT UNIQUE, password TEXT);",
 		"CREATE TABLE usersettings (user_id INTEGER PRIMARY KEY NOT NULL, blogtitle TEXT, blogabout TEXT);",
 		"INSERT INTO user (user_id, username, password) VALUES (1, 'admin', '');",
@@ -420,10 +420,10 @@ func validateHash(shash, sinput string) bool {
 }
 
 var DefaultSite = Site{
-	Siteid:   1,
-	Title:    "FreeBlog",
-	About:    "(about text here)",
-	BlogType: 1,
+	Siteid:  1,
+	Title:   "FreeBlog",
+	About:   "(about text here)",
+	IsGroup: false,
 }
 var DefaultUserSettings = UserSettings{
 	Userid:    0,
@@ -432,18 +432,18 @@ var DefaultUserSettings = UserSettings{
 }
 
 func findSite(db *sql.DB) *Site {
-	s := "SELECT site_id, title, about, blogtype FROM site WHERE site_id = ?"
+	s := "SELECT site_id, title, about, isgroup FROM site WHERE site_id = ?"
 	row := db.QueryRow(s, 1)
 	var site Site
-	err := row.Scan(&site.Siteid, &site.Title, &site.About, &site.BlogType)
+	err := row.Scan(&site.Siteid, &site.Title, &site.About, &site.IsGroup)
 	if err != nil {
 		return &DefaultSite
 	}
 	return &site
 }
 func createSite(db *sql.DB, site *Site) error {
-	s := "INSERT OR REPLACE INTO site (site_id, title, about, blogtype) VALUES (?, ?, ?, ?)"
-	_, err := sqlexec(db, s, 1, site.Title, site.About, site.BlogType)
+	s := "INSERT OR REPLACE INTO site (site_id, title, about, isgroup) VALUES (?, ?, ?, ?)"
+	_, err := sqlexec(db, s, 1, site.Title, site.About, site.IsGroup)
 	return err
 }
 
@@ -1049,6 +1049,7 @@ func getPageParams(r *http.Request, db *sql.DB) *PageParams {
 	var pp PageParams
 
 	site := findSite(db)
+	pp.IsGroup = site.IsGroup
 	pp.BlogTitle = site.Title
 
 	var bloguser *User
@@ -1060,7 +1061,7 @@ func getPageParams(r *http.Request, db *sql.DB) *PageParams {
 		pp.BlogUsername = qescape(bloguser.Username)
 		pp.BlogUserid = bloguser.Userid
 
-		if site.BlogType == 1 {
+		if !site.IsGroup {
 			us := findUserSettingsById(db, bloguser.Userid)
 			pp.BlogTitle = escape(us.BlogTitle)
 		}
