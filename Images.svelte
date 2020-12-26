@@ -17,8 +17,13 @@
 import {onMount, createEventDispatcher} from "svelte";
 let dispatch = createEventDispatcher();
 import {find, submit} from "./helpers.js";
+import {currentSession} from "./helpers.js";
+let session = currentSession();
 
 export let userid = 0;
+if (userid == 0) {
+    userid = session.userid;
+}
 
 let svcurl = "/api";
 let ui = {};

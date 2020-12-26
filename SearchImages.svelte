@@ -37,6 +37,13 @@
 import Tablinks from "./Tablinks.svelte";
 import FileThumbnail from "./FileThumbnail.svelte";
 import FileLink from "./FileLink.svelte";
+import {currentSession} from "./helpers.js";
+let session = currentSession();
+
+export let userid = 0;
+if (userid == 0) {
+    userid = session.userid;
+}
 
 let svcurl = "/api";
 let ui = {};
@@ -51,9 +58,9 @@ function ontabsel(e) {
 }
 
 async function searchfiles(qsearch) {
-    let sreq = `${svcurl}/files?filetype=image&filename=${qsearch}`;
+    let sreq = `${svcurl}/files?filetype=image&userid=${userid}&filename=${qsearch}`;
     if (ui.tabsel == "files") {
-        sreq = `${svcurl}/files?filetype=attachment&filename=${qsearch}`;
+        sreq = `${svcurl}/files?filetype=attachment&userid=${userid}&filename=${qsearch}`;
     }
     try {
         let res = await fetch(sreq, {method: "GET"});
