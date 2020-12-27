@@ -896,19 +896,24 @@ func printContainerClose(P PrintFunc) {
 	P("</div>\n")
 }
 func printHeading(P PrintFunc, u *User, pp *PageParams) {
+	var blogusername string
+	if !pp.IsGroup {
+		blogusername = pp.BlogUsername
+	}
+
 	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm\"\n>")
 	P("    <div>\n")
-	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/%s\">%s</a></h1>\n", pp.BlogUsername, pp.BlogTitle)
-	P("        <a href=\"/%s?page=about\" class=\"self-end mr-2\">About</a>\n", pp.BlogUsername)
+	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/%s\">%s</a></h1>\n", blogusername, pp.BlogTitle)
+	P("        <a href=\"/%s?page=about\" class=\"self-end mr-2\">About</a>\n", blogusername)
 	P("    </div>\n")
 	P("    <div>\n")
 	if u != nil {
 		P("        <div class=\"relative inline mr-2\">\n")
-		P("            <a class=\"mr-1\" href=\"/%s?page=dashboard\">%s</a>\n", pp.BlogUsername, escape(u.Username))
+		P("            <a class=\"mr-1\" href=\"/%s?page=dashboard\">%s</a>\n", blogusername, escape(u.Username))
 		P("        </div>\n")
-		P("        <a href=\"/%s?page=logout\" class=\"inline self-end mr-1\">Logout</a>\n", pp.BlogUsername)
+		P("        <a href=\"/%s?page=logout\" class=\"inline self-end mr-1\">Logout</a>\n", blogusername)
 	} else {
-		P("        <a href=\"/%s?page=login\" class=\"inline self-end mr-1\">Login</a>\n", pp.BlogUsername)
+		P("        <a href=\"/%s?page=login\" class=\"inline self-end mr-1\">Login</a>\n", blogusername)
 	}
 	P("    </div>\n")
 	P("</div>\n")
