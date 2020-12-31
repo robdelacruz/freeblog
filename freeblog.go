@@ -1047,6 +1047,8 @@ func rootHandler(db *sql.DB) http.HandlerFunc {
 		page := r.FormValue("page")
 		if page == "index" || page == "" {
 			indexHandler(w, r, db)
+		} else if page == "about" {
+			aboutHandler(w, r, db)
 		} else if page == "tags" {
 			tagsHandler(w, r, db)
 		} else if page == "entry" {
@@ -1187,6 +1189,33 @@ ORDER BY numentries DESC`, swhere)
 		P("  <span class=\"text-sm\">(%d)</span>\n", numentries)
 		P("</p>\n")
 	}
+	P("</div>\n")
+
+	printContainerClose(P)
+	printHtmlClose(P)
+}
+
+func aboutHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	pp := getPageParams(r, db)
+	printHtmlOpen(P, pp.BlogTitle, nil)
+	printContainerOpen(P)
+	printHeading(P, u, pp)
+
+	var aboutBody string
+	if pp.BlogUserid == 0 {
+		site := findSite(db)
+		aboutBody = site.About
+	} else {
+		us := findUserSettingsById(db, pp.BlogUserid)
+		aboutBody = us.BlogAbout
+	}
+
+	P("<div class=\"content\">\n")
+	P("%s\n", parseMarkdown(aboutBody))
 	P("</div>\n")
 
 	printContainerClose(P)
