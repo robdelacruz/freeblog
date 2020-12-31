@@ -37,6 +37,7 @@ type Entry struct {
 	Createdt string `json:"createdt"`
 	Userid   int64  `json:"userid"`
 	Username string `json:"username"`
+	Tags     string `json:"tags"`
 }
 type File struct {
 	Fileid   int64  `json:"fileid"`
@@ -64,6 +65,7 @@ type PageParams struct {
 	BlogTitle    string
 	BlogUsername string
 	BlogUserid   int64
+	BaseUrl      string
 }
 
 func jsonstr(v interface{}) string {
@@ -711,12 +713,36 @@ WHERE entry_id = ?`
 	if err != nil {
 		return nil
 	}
+	e.Tags = findEntryTagsString(db, entryid)
 	return &e
 }
-func findEntries(db *sql.DB, quserid int64, qlimit, qoffset int) ([]*Entry, error) {
+func findEntryTags(db *sql.DB, entryid int64) []string {
+	tt := []string{}
+	s := "SELECT tag FROM entrytag WHERE entry_id = ? ORDER BY tag"
+	rows, err := db.Query(s, entryid)
+	if err != nil {
+		return tt
+	}
+	for rows.Next() {
+		var t string
+		rows.Scan(&t)
+		tt = append(tt, t)
+	}
+	return tt
+}
+func findEntryTagsString(db *sql.DB, entryid int64) string {
+	tt := findEntryTags(db, entryid)
+	return strings.Join(tt, ", ")
+}
+func findEntries(db *sql.DB, quserid int64, qtag string, qlimit, qoffset int) ([]*Entry, error) {
+	sjoin := ""
 	swhere := "1 = 1"
 	var qq []interface{}
 
+	if qtag != "" {
+		sjoin += " INNER JOIN entrytag et ON e.entry_id = et.entry_id AND et.tag = ?"
+		qq = append(qq, qtag)
+	}
 	if quserid != 0 {
 		swhere += " AND u.user_id = ?"
 		qq = append(qq, quserid)
@@ -727,12 +753,13 @@ func findEntries(db *sql.DB, quserid int64, qlimit, qoffset int) ([]*Entry, erro
 	}
 	qq = append(qq, qlimit, qoffset)
 
-	s := fmt.Sprintf(`SELECT entry_id, title, body, createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
+	s := fmt.Sprintf(`SELECT e.entry_id, e.title, e.body, e.createdt, IFNULL(u.user_id, 0), IFNULL(u.username, '') 
 FROM entry e
 LEFT OUTER JOIN user u ON u.user_id = e.user_id 
+ %s 
 WHERE %s 
-ORDER BY entry_id DESC 
-LIMIT ? OFFSET ?`, swhere)
+ORDER BY e.entry_id DESC 
+LIMIT ? OFFSET ?`, sjoin, swhere)
 	rows, err := db.Query(s, qq...)
 	if err != nil {
 		return nil, err
@@ -741,6 +768,7 @@ LIMIT ? OFFSET ?`, swhere)
 	for rows.Next() {
 		var e Entry
 		rows.Scan(&e.Entryid, &e.Title, &e.Body, &e.Createdt, &e.Userid, &e.Username)
+		e.Tags = findEntryTagsString(db, e.Entryid)
 		ee = append(ee, &e)
 	}
 	return ee, nil
@@ -896,24 +924,19 @@ func printContainerClose(P PrintFunc) {
 	P("</div>\n")
 }
 func printHeading(P PrintFunc, u *User, pp *PageParams) {
-	var blogusername string
-	if !pp.IsGroup {
-		blogusername = pp.BlogUsername
-	}
-
 	P("<div class=\"flex flex-row justify-between border-b border-gray-500 pb-1 mb-4 text-sm\"\n>")
 	P("    <div>\n")
-	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"/%s\">%s</a></h1>\n", blogusername, pp.BlogTitle)
-	P("        <a href=\"/%s?page=about\" class=\"self-end mr-2\">About</a>\n", blogusername)
+	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"%s\">%s</a></h1>\n", pp.BaseUrl, pp.BlogTitle)
+	P("        <a href=\"%s?page=about\" class=\"self-end mr-2\">About</a>\n", pp.BaseUrl)
 	P("    </div>\n")
 	P("    <div>\n")
 	if u != nil {
 		P("        <div class=\"relative inline mr-2\">\n")
-		P("            <a class=\"mr-1\" href=\"/%s?page=dashboard\">%s</a>\n", blogusername, escape(u.Username))
+		P("            <a class=\"mr-1\" href=\"%s?page=dashboard\">%s</a>\n", pp.BaseUrl, escape(u.Username))
 		P("        </div>\n")
-		P("        <a href=\"/%s?page=logout\" class=\"inline self-end mr-1\">Logout</a>\n", blogusername)
+		P("        <a href=\"%s?page=logout\" class=\"inline self-end mr-1\">Logout</a>\n", pp.BaseUrl)
 	} else {
-		P("        <a href=\"/%s?page=login\" class=\"inline self-end mr-1\">Login</a>\n", blogusername)
+		P("        <a href=\"%s?page=login\" class=\"inline self-end mr-1\">Login</a>\n", pp.BaseUrl)
 	}
 	P("    </div>\n")
 	P("</div>\n")
@@ -1071,6 +1094,10 @@ func getPageParams(r *http.Request, db *sql.DB) *PageParams {
 			pp.BlogTitle = escape(us.BlogTitle)
 		}
 	}
+	pp.BaseUrl = "/"
+	if !pp.IsGroup {
+		pp.BaseUrl = fmt.Sprintf("/%s", pp.BlogUsername)
+	}
 
 	return &pp
 }
@@ -1078,7 +1105,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	u, _ := validateLoginCookie(db, r)
 
 	pp := getPageParams(r, db)
-	ee, err := findEntries(db, pp.BlogUserid, 0, 0)
+	qtag := r.FormValue("tag")
+	ee, err := findEntries(db, pp.BlogUserid, qtag, 0, 0)
 	if handleDbErr(w, err, "indexHandler") {
 		return
 	}
@@ -1089,7 +1117,12 @@ func indexHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printContainerOpen(P)
 	printHeading(P, u, pp)
 
-	P("<h1 class=\"font-bold text-lg mb-2\">Latest Posts</h1>\n")
+	title := "Latest Posts"
+	if qtag != "" {
+		title = fmt.Sprintf("Latest Posts tagged '%s'", escape(qtag))
+	}
+
+	P("<h1 class=\"font-bold text-lg mb-2\">%s</h1>\n", title)
 	for _, e := range ee {
 		P("<div class=\"flex flex-row py-1\">\n")
 		P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
@@ -1125,12 +1158,12 @@ func entryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printContainerOpen(P)
 	printHeading(P, u, pp)
 
-	printEntry(P, db, e)
+	printEntry(P, db, e, pp)
 
 	printContainerClose(P)
 	printHtmlClose(P)
 }
-func printEntry(P PrintFunc, db *sql.DB, e *Entry) {
+func printEntry(P PrintFunc, db *sql.DB, e *Entry, pp *PageParams) {
 	P("<h1 class=\"font-bold text-2xl mb-2\">%s</h1>\n", escape(e.Title))
 	if e.Username != "" {
 		P("<p class=\"mb-4 text-sm\">Posted on \n")
@@ -1143,6 +1176,27 @@ func printEntry(P PrintFunc, db *sql.DB, e *Entry) {
 	P("<div class=\"content\">\n")
 	P("%s\n", parseMarkdown(e.Body))
 	P("</div>\n")
+
+	printTags(P, e.Tags, pp)
+}
+func printTags(P PrintFunc, tags string, pp *PageParams) {
+	if tags == "" {
+		return
+	}
+
+	P("<p class=\"mt-4 italic text-sm\">Tags: \n")
+	tt := strings.Split(tags, ",")
+	for i, t := range tt {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		P("    <a href=\"%s?tag=%s\" class=\"italic action\">%s</a>", pp.BaseUrl, qescape(t), escape(t))
+		if i < len(tt)-1 {
+			P(", ")
+		}
+	}
+	P("</p>\n")
 }
 
 func fileext(filename string) string {
@@ -1298,11 +1352,19 @@ func createEntry(db *sql.DB, e *Entry) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	err = setEntryTags(db, entryid, e.Tags)
+	if err != nil {
+		return entryid, err
+	}
 	return entryid, nil
 }
 func editEntry(db *sql.DB, e *Entry) error {
 	s := "UPDATE entry SET title = ?, body = ? WHERE entry_id = ?"
 	_, err := sqlexec(db, s, e.Title, e.Body, e.Entryid)
+	if err != nil {
+		return err
+	}
+	err = setEntryTags(db, e.Entryid, e.Tags)
 	if err != nil {
 		return err
 	}
@@ -1313,6 +1375,33 @@ func delEntry(db *sql.DB, entryid int64) error {
 	_, err := sqlexec(db, s, entryid)
 	if err != nil {
 		return err
+	}
+	err = setEntryTags(db, entryid, "")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Sets entry tags by removing any existing tags, then adding the new tags.
+func setEntryTags(db *sql.DB, entryid int64, tags string) error {
+	s := "DELETE FROM entrytag WHERE entry_id = ?"
+	_, err := sqlexec(db, s, entryid)
+	if err != nil {
+		return err
+	}
+
+	tt := strings.Split(tags, ",")
+	for _, t := range tt {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		s := "INSERT INTO entrytag (entry_id, tag) VALUES (?, ?)"
+		_, err := sqlexec(db, s, entryid, t)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1663,6 +1752,7 @@ func printViewEntry(P PrintFunc, db *sql.DB, e *Entry) {
 
 // GET /api/entries
 // GET /api/entries?userid=2
+// GET /api/entries?tag=abc
 // GET /api/entries?limit=10
 // GET /api/entries?limit=10&offset=20
 func apientriesHandler(db *sql.DB) http.HandlerFunc {
@@ -1671,10 +1761,11 @@ func apientriesHandler(db *sql.DB) http.HandlerFunc {
 		var err error
 
 		quserid := idtoi(r.FormValue("userid"))
+		qtag := r.FormValue("tag")
 		qlimit := atoi(r.FormValue("limit"))
 		qoffset := atoi(r.FormValue("offset"))
 
-		ee, err = findEntries(db, quserid, qlimit, qoffset)
+		ee, err = findEntries(db, quserid, qtag, qlimit, qoffset)
 		if err != nil {
 			handleErr(w, err, "apientriesHandler")
 		}

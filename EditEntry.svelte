@@ -32,7 +32,7 @@
         </div>
         <div class="mb-2">
             <label class="block font-bold uppercase text-xs" for="tags">tags</label>
-            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="tags" name="tags" type="text" value="">
+            <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="tags" name="tags" type="text" bind:value={ui.entry.tags}>
         </div>
     {#if ui.submitstatus != ""}
         <div class="mb-2">
