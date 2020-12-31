@@ -63,8 +63,8 @@ type UserSettings struct {
 type PageParams struct {
 	IsGroup      bool
 	BlogTitle    string
-	BlogUsername string
 	BlogUserid   int64
+	BlogUsername string
 	BaseUrl      string
 }
 
@@ -1082,26 +1082,28 @@ func getPageParams(r *http.Request, db *sql.DB) *PageParams {
 	site := findSite(db)
 	pp.IsGroup = site.IsGroup
 	pp.BlogTitle = site.Title
-
-	var bloguser *User
-	blogusername, _ := parsePageUrl(r)
-	if blogusername != "" {
-		bloguser = findUserByUsername(db, blogusername)
-	}
-	if bloguser != nil {
-		pp.BlogUsername = qescape(bloguser.Username)
-		pp.BlogUserid = bloguser.Userid
-
-		if !site.IsGroup {
-			us := findUserSettingsById(db, bloguser.Userid)
-			pp.BlogTitle = escape(us.BlogTitle)
-		}
-	}
 	pp.BaseUrl = "/"
-	if !pp.IsGroup {
-		pp.BaseUrl = fmt.Sprintf("/%s", pp.BlogUsername)
+
+	blogusername, _ := parsePageUrl(r)
+	if blogusername == "" {
+		return &pp
+	}
+	u := findUserByUsername(db, blogusername)
+	if u == nil {
+		return &pp
+	}
+	pp.BlogUserid = u.Userid
+	pp.BlogUsername = u.Username
+
+	if site.IsGroup {
+		return &pp
 	}
 
+	// user blog space Ex. /user123
+	// Use usersettings title and make /user123 the base url
+	us := findUserSettingsById(db, u.Userid)
+	pp.BlogTitle = escape(us.BlogTitle)
+	pp.BaseUrl = fmt.Sprintf("/%s", blogusername)
 	return &pp
 }
 func indexHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
@@ -1121,8 +1123,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printHeading(P, u, pp)
 
 	title := "Latest Posts"
+	if pp.IsGroup && pp.BlogUsername != "" {
+		title += fmt.Sprintf(" from %s", escape(pp.BlogUsername))
+	}
 	if qtag != "" {
-		title = fmt.Sprintf("Latest Posts tagged '%s'", escape(qtag))
+		title += fmt.Sprintf(" tagged '%s'", escape(qtag))
 	}
 
 	P("<h1 class=\"font-bold text-lg mb-2\">%s</h1>\n", title)
@@ -1130,9 +1135,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		P("<div class=\"flex flex-row py-1\">\n")
 		P("    <p class=\"text-xs text-gray-700\">%s</p>\n", formatdate(e.Createdt))
 		P("    <p class=\"flex-grow px-4\">\n")
-		P("        <a class=\"action font-bold\" href=\"/%s?page=entry&id=%d\">%s</a>\n", pp.BlogUsername, e.Entryid, escape(e.Title))
+		P("        <a class=\"action font-bold\" href=\"%s?page=entry&id=%d\">%s</a>\n", pp.BaseUrl, e.Entryid, escape(e.Title))
 		P("    </p>\n")
-		P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
+		if pp.IsGroup || pp.BlogUserid == 0 {
+			P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
+		}
 		P("</div>\n")
 	}
 
@@ -1154,8 +1161,20 @@ func tagsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	P("<h1 class=\"font-bold text-lg mb-2\">Tags</h1>\n")
 	P("<div class=\"flex flex-col py-1\">\n")
 
-	s := "SELECT DISTINCT et.tag, (SELECT COUNT(*) FROM entrytag et2 WHERE et2.tag = et.tag) AS numentries FROM entrytag et ORDER BY numentries DESC"
-	rows, err := db.Query(s)
+	swhere := "1 = 1"
+	var qq []interface{}
+
+	if pp.BlogUserid != 0 {
+		swhere += " AND e.user_id = ?"
+		qq = append(qq, pp.BlogUserid)
+	}
+
+	s := fmt.Sprintf(`SELECT DISTINCT et.tag, (SELECT COUNT(*) FROM entrytag et2 WHERE et2.tag = et.tag) AS numentries 
+FROM entrytag et 
+INNER JOIN entry e ON et.entry_id = e.entry_id 
+WHERE %s 
+ORDER BY numentries DESC`, swhere)
+	rows, err := db.Query(s, qq...)
 	if handleDbErr(w, err, "tagsHandler") {
 		return
 	}
@@ -1310,12 +1329,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printContainerOpen(P)
 	printHeading(P, u, pp)
 
-	printFormSmallOpen(P, fmt.Sprintf("/%s?page=login", pp.BlogUsername), "Log In")
+	printFormSmallOpen(P, fmt.Sprintf("%s?page=login", pp.BaseUrl), "Log In")
 	printFormInput(P, "username", "username", f.username)
 	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormError(P, errmsg)
 	printFormSubmit(P, "Login")
-	printFormLinks(P, "", fmt.Sprintf("/%s?page=signup", pp.BlogUsername), "Create New Account", "/", "Cancel")
+	printFormLinks(P, "", fmt.Sprintf("%s?page=signup", pp.BaseUrl), "Create New Account", "/", "Cancel")
 	printFormClose(P)
 
 	printContainerClose(P)
@@ -1325,7 +1344,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	delLoginCookie(w)
 
 	pp := getPageParams(r, db)
-	http.Redirect(w, r, fmt.Sprintf("/%s", pp.BlogUsername), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("%s", pp.BaseUrl), http.StatusSeeOther)
 }
 func signupHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	u, _ := validateLoginCookie(db, r)
@@ -1366,7 +1385,7 @@ func signupHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	printContainerOpen(P)
 	printHeading(P, u, pp)
 
-	printFormSmallOpen(P, fmt.Sprintf("/%s?page=signup", pp.BlogUsername), "Sign Up")
+	printFormSmallOpen(P, fmt.Sprintf("%s?page=signup", pp.BaseUrl), "Sign Up")
 	printFormInput(P, "username", "username", f.username)
 	printFormInputPassword(P, "pwd", "password", f.pwd)
 	printFormInputPassword(P, "pwd2", "re-enter password", f.pwd2)
