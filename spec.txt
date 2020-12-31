@@ -1,0 +1,5 @@
+sample font/layout to use: https://madaidans-insecurities.github.io/guides/linux-hardening.html
+bg: #fefefe
+fg: #222
+font: Arial, Helvetica Neue, sans-serif
+
