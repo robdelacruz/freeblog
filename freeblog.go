@@ -928,6 +928,7 @@ func printHeading(P PrintFunc, u *User, pp *PageParams) {
 	P("    <div>\n")
 	P("        <h1 class=\"inline self-end ml-1 mr-2 font-bold\"><a href=\"%s\">%s</a></h1>\n", pp.BaseUrl, pp.BlogTitle)
 	P("        <a href=\"%s?page=about\" class=\"self-end mr-2\">About</a>\n", pp.BaseUrl)
+	P("        <a href=\"%s?page=tags\" class=\"self-end mr-2\">Tags</a>\n", pp.BaseUrl)
 	P("    </div>\n")
 	P("    <div>\n")
 	if u != nil {
@@ -1046,6 +1047,8 @@ func rootHandler(db *sql.DB) http.HandlerFunc {
 		page := r.FormValue("page")
 		if page == "index" || page == "" {
 			indexHandler(w, r, db)
+		} else if page == "tags" {
+			tagsHandler(w, r, db)
 		} else if page == "entry" {
 			entryHandler(w, r, db)
 		} else if page == "file" {
@@ -1132,6 +1135,40 @@ func indexHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		P("    <a class=\"text-xs text-gray-700 px-2\" href=\"/%s\">%s</a>\n", qescape(e.Username), escape(e.Username))
 		P("</div>\n")
 	}
+
+	printContainerClose(P)
+	printHtmlClose(P)
+}
+
+func tagsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	u, _ := validateLoginCookie(db, r)
+
+	pp := getPageParams(r, db)
+
+	w.Header().Set("Content-Type", "text/html")
+	P := makeFprintf(w)
+	printHtmlOpen(P, pp.BlogTitle, nil)
+	printContainerOpen(P)
+	printHeading(P, u, pp)
+
+	P("<h1 class=\"font-bold text-lg mb-2\">Tags</h1>\n")
+	P("<div class=\"flex flex-col py-1\">\n")
+
+	s := "SELECT DISTINCT et.tag, (SELECT COUNT(*) FROM entrytag et2 WHERE et2.tag = et.tag) AS numentries FROM entrytag et ORDER BY numentries DESC"
+	rows, err := db.Query(s)
+	if handleDbErr(w, err, "tagsHandler") {
+		return
+	}
+	for rows.Next() {
+		var tag string
+		var numentries int
+		rows.Scan(&tag, &numentries)
+		P("<p>\n")
+		P("  <a class=\"action mr-1\" href=\"%s?tag=%s\">%s</a>\n", pp.BaseUrl, qescape(tag), escape(tag))
+		P("  <span class=\"text-sm\">(%d)</span>\n", numentries)
+		P("</p>\n")
+	}
+	P("</div>\n")
 
 	printContainerClose(P)
 	printHtmlClose(P)
