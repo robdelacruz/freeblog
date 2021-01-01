@@ -421,27 +421,27 @@ func validateHash(shash, sinput string) bool {
 	return true
 }
 
-var DefaultSite = Site{
-	Siteid:  1,
-	Title:   "FreeBlog",
-	About:   "(about text here)",
-	IsGroup: false,
-}
-var DefaultUserSettings = UserSettings{
-	Userid:    0,
-	BlogTitle: "My Blog",
-	BlogAbout: "(about text here)",
-}
-
 func findSite(db *sql.DB) *Site {
-	s := "SELECT site_id, title, about, isgroup FROM site WHERE site_id = ?"
+	s := "SELECT site_id, title, isgroup FROM site WHERE site_id = ?"
 	row := db.QueryRow(s, 1)
 	var site Site
-	err := row.Scan(&site.Siteid, &site.Title, &site.About, &site.IsGroup)
+	err := row.Scan(&site.Siteid, &site.Title, &site.IsGroup)
 	if err != nil {
-		return &DefaultSite
+		site.Siteid = 1
+		site.Title = "FreeBlog"
+		site.IsGroup = false
 	}
 	return &site
+}
+func findSiteAbout(db *sql.DB) string {
+	s := "SELECT about FROM site WHERE site_id = ?"
+	row := db.QueryRow(s, 1)
+	var about string
+	err := row.Scan(&about)
+	if err != nil {
+		about = "(server error retrieving about page)"
+	}
+	return about
 }
 func createSite(db *sql.DB, site *Site) error {
 	s := "INSERT OR REPLACE INTO site (site_id, title, about, isgroup) VALUES (?, ?, ?, ?)"
@@ -450,17 +450,26 @@ func createSite(db *sql.DB, site *Site) error {
 }
 
 func findUserSettingsById(db *sql.DB, userid int64) *UserSettings {
-	s := "SELECT user_id, blogtitle, blogabout FROM usersettings WHERE user_id = ?"
+	s := "SELECT user_id, blogtitle FROM usersettings WHERE user_id = ?"
 	row := db.QueryRow(s, userid)
 	var us UserSettings
-	err := row.Scan(&us.Userid, &us.BlogTitle, &us.BlogAbout)
+	err := row.Scan(&us.Userid, &us.BlogTitle)
 	if err != nil {
 		us.Userid = userid
-		us.BlogTitle = DefaultUserSettings.BlogTitle
-		us.BlogAbout = DefaultUserSettings.BlogAbout
+		us.BlogTitle = "My Blog"
 		return &us
 	}
 	return &us
+}
+func findUserAboutById(db *sql.DB, userid int64) string {
+	s := "SELECT blogabout FROM usersettings WHERE user_id = ?"
+	row := db.QueryRow(s, userid)
+	var about string
+	err := row.Scan(&about)
+	if err != nil {
+		about = "(server error retrieving about page)"
+	}
+	return about
 }
 func createUserSettings(db *sql.DB, us *UserSettings) error {
 	s := "INSERT OR REPLACE INTO usersettings (user_id, blogtitle, blogabout) VALUES (?, ?, ?)"
@@ -1207,11 +1216,9 @@ func aboutHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	var aboutBody string
 	if pp.BlogUserid == 0 {
-		site := findSite(db)
-		aboutBody = site.About
+		aboutBody = findSiteAbout(db)
 	} else {
-		us := findUserSettingsById(db, pp.BlogUserid)
-		aboutBody = us.BlogAbout
+		aboutBody = findUserAboutById(db, pp.BlogUserid)
 	}
 
 	P("<div class=\"content\">\n")
@@ -2085,6 +2092,7 @@ func apisiteHandler(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Not found.", 404)
 				return
 			}
+			site.About = findSiteAbout(db)
 
 			w.Header().Set("Content-Type", "application/json")
 			P := makeFprintf(w)
@@ -2144,6 +2152,7 @@ func apiusersettingsHandler(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Not found.", 404)
 				return
 			}
+			us.BlogAbout = findUserAboutById(db, qid)
 
 			w.Header().Set("Content-Type", "application/json")
 			P := makeFprintf(w)
