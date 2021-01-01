@@ -7,7 +7,7 @@
         <a class="action self-center rounded text-xs px-0 py-0" href="#a" on:click|preventDefault={oncancel}>Cancel</a>
     </div>
 {:else}
-    <form class="flex-grow flex flex-col mx-auto px-4 text-sm" on:submit|preventDefault={onsubmit}>
+    <form class="flex-grow flex flex-col mx-auto px-4 text-sm h-80vh" on:submit|preventDefault={onsubmit}>
         <div class="flex flex-row py-1">
             <div class="flex-grow">
                 <p class="inline mr-1">Editing:</p>
@@ -24,7 +24,7 @@
         </div>
         <div class="flex-grow flex flex-col mb-2">
             <label class="block font-bold uppercase text-xs" for="about">about description</label>
-            <textarea class="flex-grow block border border-gray-500 py-1 px-4 w-full leading-5" id="about" name="about" bind:value={ui.us.blogabout} rows="5"></textarea>
+            <textarea class="flex-grow block border border-gray-500 py-1 px-4 w-full leading-5" id="about" name="about" bind:value={ui.us.blogabout}></textarea>
         </div>
     {#if ui.submitstatus != ""}
         <div class="mb-2">
