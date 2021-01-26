@@ -7,3 +7,5 @@ clean blog look: https://www.vegardstikbakke.com/
 
 midnight pub: https://midnight.pub/
 
+pavel durov: https://telegra.ph/Consume-Less-Create-More-Its-More-Fun-12-04
+
