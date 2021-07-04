@@ -38,7 +38,7 @@ freeblog: freeblog.go
 	go build -o freeblog freeblog.go
 
 clean:
-	rm -rf freeblog static/*.js static/*.css static/*.map
+	rm -rf freeblog static/bundle.js static/bundle.css static/*.map
 
 serve:
 	python -m SimpleHTTPServer
