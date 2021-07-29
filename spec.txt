@@ -18,4 +18,5 @@ indy theme used in 'City a Desert' blog
 
 https://www.chimamanda.com/
 https://engineering.kablamo.com.au/posts/2021/my-first-css
+https://eli.thegreenplace.net/
 
