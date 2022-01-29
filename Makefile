@@ -4,16 +4,16 @@
 # 'make' to build css and js into static/
 # 'make serve' to start dev webserver
 
+NODE_VER = 14
+
 JSFILES = index.js helpers.js Dashboard.svelte Entries.svelte EditEntry.svelte DelEntry.svelte Images.svelte EditImage.svelte DelImage.svelte Files.svelte EditFile.svelte DelFile.svelte AccountMenu.svelte EditSite.svelte EditUserSettings.svelte ChangePassword.svelte DelUser.svelte UploadImages.svelte SearchImages.svelte FileThumbnail.svelte FileLink.svelte PopupMenu.svelte Tablinks.svelte
 
 all: freeblog static/style.css static/bundle.js
 
 dep:
-	sudo apt update
-	sudo apt install curl software-properties-common
-	curl -sL https://deb.nodesource.com/setup_13.x | sudo bash -
+	curl -fsSL https://deb.nodesource.com/setup_$(NODE_VER).x | sudo bash -
 	sudo apt install nodejs
-	sudo npm --force install -g npx
+	sudo npm install -g npx
 	go get github.com/gorilla/feeds
 	go get github.com/shurcooL/github_flavored_markdown
 
