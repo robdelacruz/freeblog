@@ -914,7 +914,7 @@ func printHtmlOpen(P PrintFunc, title string, jsurls []string) {
 	P(".myfont {font-family: Helvetica Neue,Helvetica,Arial,sans-serif;}\n")
 	P("</style>\n")
 	P("</head>\n")
-	P("<body class=\"text-base leading-6 myfont light\">\n")
+	P("<body class=\"text-base leading-6 myfont dark\">\n")
 }
 func printHtmlClose(P PrintFunc) {
 	P("</body>\n")

@@ -1,32 +1,32 @@
-<form class="flex flex-col" on:submit={onsubmit}>
+<form class="flex flex-col" autocomplete="off" on:submit|preventDefault="{e => {}}">
     <div class="flex flex-row justify-between mb-2">
         <h1 class="font-bold text-base">Search</h1>
         <div class="text-sm">
-            <Tablinks links="images|Images;files|Files" bind:sel={ui.tabsel} on:sel={ontabsel} />
+            <Tablinks links="images|Images;files|Files" bind:sel={tabsel} on:sel={ontabsel} />
         </div>
     </div>
     <div class="mb-2">
-        <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="search" name="search" type="text" bind:value={ui.qsearch}>
+        <input class="block border border-gray-500 py-1 px-4 w-full leading-5" id="search" name="search" type="text" bind:value={qfilter}>
     </div>
-{#if ui.status != ""}
+{#if status != ""}
     <div class="mb-2">
-        <p class="uppercase italic text-xs">{ui.status}</p>
+        <p class="uppercase italic text-xs">{status}</p>
     </div>
 {/if}
-{#if ui.err != ""}
+{#if err != ""}
     <div class="mb-2">
-        <p class="font-bold uppercase text-xs">{ui.err}</p>
+        <p class="font-bold uppercase text-xs">{err}</p>
     </div>
 {/if}
-{#if ui.tabsel == "images"}
+{#if tabsel == "images"}
     <div class="flex flex-row flex-wrap mb-2 justify-start">
-    {#each ui.files as f (f.fileid)}
+    {#each display_files as f (f.fileid)}
         <FileThumbnail title={f.title} url={f.url} />
     {/each}
     </div>
-{:else if ui.tabsel == "files"}
+{:else if tabsel == "files"}
     <div class="mb-2">
-    {#each ui.files as f (f.fileid)}
+    {#each display_files as f (f.fileid)}
         <FileLink filename={f.filename} title={f.title} url={f.url} />
     {/each}
     </div>
@@ -46,22 +46,53 @@ if (userid == 0) {
 }
 
 let svcurl = "/api";
-let ui = {};
-ui.tabsel = "images";
-ui.qsearch = "";
-ui.files = [];
-ui.status = "";
-ui.err = "";
+let tabsel = "images";
+let qfilter = "";
+let files = [];
+let display_files = [];
+let status = "";
+let err = "";
 
-function ontabsel(e) {
-    ui.files = [];
+$: display_files = filterFiles(files, qfilter);
+
+$: init(tabsel);
+
+async function init(tabsel) {
+    status = "loading files...";
+    let filetype = "image";
+    if (tabsel == "files") {
+        filetype = "attachment";
+    }
+    let [ff, e] = await searchfiles("", filetype);
+    if (e != null) {
+        console.error(e);
+        err = "Server error loading files";
+    }
+    files = ff;
+    status = "";
 }
 
-async function searchfiles(qsearch) {
-    let sreq = `${svcurl}/files?filetype=image&userid=${userid}&filename=${qsearch}`;
-    if (ui.tabsel == "files") {
-        sreq = `${svcurl}/files?filetype=attachment&userid=${userid}&filename=${qsearch}`;
+function filterFiles(files, qfilter) {
+    let ff = [];
+    qfilter = qfilter.trim().toLowerCase();
+
+    for (let i=0; i < files.length; i++) {
+        let f = files[i];
+        if (f.filename.toLowerCase().includes(qfilter) ||
+            f.title.toLowerCase().includes(qfilter) ||
+            f.url.toLowerCase().includes(qfilter)) {
+            ff.push(f);
+        }
     }
+    return ff;
+}
+
+function ontabsel(e) {
+    files = [];
+}
+
+async function searchfiles(qsearch, filetype) {
+    let sreq = `${svcurl}/files?filetype=${filetype}&userid=${userid}&filename=${qsearch}`;
     try {
         let res = await fetch(sreq, {method: "GET"});
         if (!res.ok) {
@@ -73,22 +104,6 @@ async function searchfiles(qsearch) {
     } catch(err) {
         return [[], err];
     }
-}
-
-async function onsubmit(e) {
-    e.preventDefault();
-
-    ui.status = "searching...";
-    ui.err = "";
-    ui.files = [];
-
-    let [ff, err] = await searchfiles(ui.qsearch);
-    if (err != null) {
-        console.error(err);
-        ui.err = "Server error occured during search";
-    }
-    ui.files = ff;
-    ui.status = "";
 }
 
 </script>

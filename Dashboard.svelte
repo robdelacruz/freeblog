@@ -62,11 +62,11 @@
         </div>
     </div>
     <div class="side-col">
-        <div class="panel py-2 px-4 text-sm mb-2">
-            <SearchImages userid={session.userid} />
-        </div>
         <div class="panel py-2 px-4 text-sm mb-0">
             <UploadImages />
+        </div>
+        <div class="panel py-2 px-4 text-sm mb-2">
+            <SearchImages userid={session.userid} />
         </div>
     </div>
 </div>
