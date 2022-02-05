@@ -16,6 +16,7 @@ nodejs:
 	sudo npm install -g npx
 
 dep:
+	go env -w GO111MODULE=auto
 	go get github.com/gorilla/feeds
 	go get github.com/shurcooL/github_flavored_markdown
 
