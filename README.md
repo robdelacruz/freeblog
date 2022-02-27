@@ -24,6 +24,6 @@ Build and test:
     Run 'freerss blog.db' to start the web service.
 
 ## Contact
-    Twitter: @robdelacruz
+    Twitter: @robcomputing
     Source: http://github.com/robdelacruz/freeblog
 
